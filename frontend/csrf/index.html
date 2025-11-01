@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSRF Protection Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .server-selector {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .server-selector h2 {
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .server-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .server-btn {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .server-btn:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .server-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .server-btn.vulnerable.active {
+            background: #dc3545;
+            border-color: #dc3545;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .card h2 {
+            margin-bottom: 20px;
+            color: #667eea;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .danger-btn {
+            background: #dc3545;
+        }
+
+        .danger-btn:hover {
+            background: #c82333;
+        }
+
+        .success-btn {
+            background: #28a745;
+        }
+
+        .success-btn:hover {
+            background: #218838;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .user-info {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+
+        .user-info p {
+            margin: 5px 0;
+            color: #555;
+        }
+
+        .user-info strong {
+            color: #667eea;
+        }
+
+        .csrf-token-display {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .attack-simulation {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .attack-simulation h3 {
+            color: #856404;
+            margin-bottom: 15px;
+        }
+
+        .attack-simulation p {
+            color: #856404;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .log-container {
+            background: #1e1e1e;
+            color: #dcdcdc;
+            padding: 20px;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #667eea;
+            padding-left: 10px;
+        }
+
+        .log-entry.error {
+            border-left-color: #dc3545;
+            color: #ff6b6b;
+        }
+
+        .log-entry.success {
+            border-left-color: #28a745;
+            color: #51cf66;
+        }
+
+        .log-entry.info {
+            border-left-color: #17a2b8;
+            color: #74c0fc;
+        }
+
+        .credential-hint {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CSRF Protection Test</h1>
+
+        <!-- Server Selector -->
+        <div class="server-selector">
+            <h2>サーバー選択</h2>
+            <div class="server-buttons">
+                <button class="server-btn vulnerable" onclick="selectServer('vulnerable')">
+                    <strong>脆弱なサーバー</strong><br>
+                    Port 8094 - CSRF対策なし
+                </button>
+                <button class="server-btn secure active" onclick="selectServer('secure')">
+                    <strong>セキュアなサーバー</strong><br>
+                    Port 8095 - CSRF保護あり
+                </button>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Login Card -->
+            <div class="card">
+                <h2>ログイン</h2>
+                <div class="form-group">
+                    <label for="username">ユーザー名</label>
+                    <input type="text" id="username" value="user1" placeholder="ユーザー名を入力">
+                </div>
+                <div class="form-group">
+                    <label for="password">パスワード</label>
+                    <input type="password" id="password" value="password1" placeholder="パスワードを入力">
+                </div>
+                <button onclick="login()">ログイン</button>
+                <div class="credential-hint">
+                    テストユーザー: user1/password1, user2/password2, admin/admin123
+                </div>
+                <div id="login-status" class="status"></div>
+                <div id="user-info" class="user-info" style="display: none;">
+                    <p><strong>ユーザー:</strong> <span id="current-user"></span></p>
+                    <p><strong>残高:</strong> ¥<span id="current-balance"></span></p>
+                    <p><strong>CSRFトークン:</strong></p>
+                    <div class="csrf-token-display" id="csrf-token-display"></div>
+                    <button onclick="logout()" style="margin-top: 10px; background: #6c757d;">ログアウト</button>
+                </div>
+            </div>
+
+            <!-- Transfer Card -->
+            <div class="card">
+                <h2>送金</h2>
+                <div class="form-group">
+                    <label for="transfer-to">送金先</label>
+                    <input type="text" id="transfer-to" placeholder="送金先のユーザー名">
+                </div>
+                <div class="form-group">
+                    <label for="transfer-amount">金額</label>
+                    <input type="number" id="transfer-amount" placeholder="金額を入力" value="1000">
+                </div>
+                <button onclick="transfer()" class="danger-btn">送金実行</button>
+                <div id="transfer-status" class="status"></div>
+            </div>
+
+            <!-- Password Change Card -->
+            <div class="card">
+                <h2>パスワード変更</h2>
+                <div class="form-group">
+                    <label for="new-password">新しいパスワード</label>
+                    <input type="password" id="new-password" placeholder="新しいパスワード">
+                </div>
+                <button onclick="changePassword()" class="danger-btn">パスワード変更</button>
+                <div id="password-status" class="status"></div>
+            </div>
+        </div>
+
+        <!-- CSRF Attack Simulation -->
+        <div class="card attack-simulation">
+            <h3>CSRF攻撃シミュレーション</h3>
+            <p>
+                この機能は、CSRF攻撃をシミュレートします。攻撃者が別のWebサイトから、
+                ログイン中のユーザーの権限を使って不正な送金を実行しようとする状況を再現します。
+            </p>
+            <div class="form-group">
+                <label for="attack-to">攻撃者の口座（送金先）</label>
+                <input type="text" id="attack-to" value="attacker" placeholder="攻撃者のユーザー名">
+            </div>
+            <div class="form-group">
+                <label for="attack-amount">盗む金額</label>
+                <input type="number" id="attack-amount" value="5000" placeholder="金額">
+            </div>
+            <button onclick="simulateCSRFAttack()" class="danger-btn">CSRF攻撃を実行</button>
+            <div id="attack-status" class="status"></div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="card">
+            <h2>アクティビティログ</h2>
+            <div class="log-container" id="log-container"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentServer = 'secure'; // デフォルトはセキュアサーバー
+
+        const SERVERS = {
+            vulnerable: 'http://localhost:8094',
+            secure: 'http://localhost:8095'
+        };
+
+        // CSRFトークン管理（sessionStorage使用）
+        function getCSRFToken() {
+            return sessionStorage.getItem('csrf_token');
+        }
+
+        function setCSRFToken(token) {
+            if (token) {
+                sessionStorage.setItem('csrf_token', token);
+                addLog('CSRFトークンをsessionStorageに保存', 'info');
+            }
+        }
+
+        function clearCSRFToken() {
+            sessionStorage.removeItem('csrf_token');
+            addLog('CSRFトークンをsessionStorageから削除', 'info');
+        }
+
+        // ユーザー情報管理（sessionStorage使用）
+        function setUserInfo(username, balance) {
+            sessionStorage.setItem('username', username);
+            sessionStorage.setItem('balance', balance);
+        }
+
+        function getUserInfo() {
+            return {
+                username: sessionStorage.getItem('username'),
+                balance: sessionStorage.getItem('balance')
+            };
+        }
+
+        function clearUserInfo() {
+            sessionStorage.removeItem('username');
+            sessionStorage.removeItem('balance');
+        }
+
+        function selectServer(server) {
+            currentServer = server;
+
+            // ボタンのスタイルを更新
+            document.querySelectorAll('.server-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.closest('.server-btn').classList.add('active');
+
+            addLog(`サーバー切り替え: ${server === 'vulnerable' ? '脆弱なサーバー (8094)' : 'セキュアなサーバー (8095)'}`, 'info');
+
+            // ログイン状態をリセット（sessionStorageクリア）
+            clearCSRFToken();
+            clearUserInfo();
+            document.getElementById('user-info').style.display = 'none';
+        }
+
+        function getAPIUrl() {
+            return SERVERS[currentServer];
+        }
+
+        function addLog(message, type = 'info') {
+            const logContainer = document.getElementById('log-container');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logContainer.insertBefore(logEntry, logContainer.firstChild);
+        }
+
+        function showStatus(elementId, message, type) {
+            const statusEl = document.getElementById(elementId);
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+            statusEl.style.display = 'block';
+
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 5000);
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                addLog(`ログイン試行: ${username}`, 'info');
+
+                const response = await fetch(`${getAPIUrl()}/api/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include', // Cookieを含める
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const csrfToken = data.csrf_token || null;
+
+                    // sessionStorageに保存
+                    if (csrfToken) {
+                        setCSRFToken(csrfToken);
+                        document.getElementById('csrf-token-display').textContent = csrfToken;
+                        addLog(`ログイン成功 (CSRFトークン取得済み)`, 'success');
+                    } else {
+                        document.getElementById('csrf-token-display').textContent = 'CSRFトークンなし（脆弱なサーバー）';
+                        addLog(`ログイン成功 (CSRFトークンなし - 脆弱)`, 'success');
+                    }
+
+                    setUserInfo(data.username, data.balance);
+
+                    document.getElementById('current-user').textContent = data.username;
+                    document.getElementById('current-balance').textContent = data.balance.toLocaleString();
+                    document.getElementById('user-info').style.display = 'block';
+
+                    showStatus('login-status', 'ログインに成功しました', 'success');
+                } else {
+                    addLog(`ログイン失敗: ${data.error}`, 'error');
+                    showStatus('login-status', data.error, 'error');
+                }
+            } catch (error) {
+                addLog(`エラー: ${error.message}`, 'error');
+                showStatus('login-status', 'ログインに失敗しました', 'error');
+            }
+        }
+
+        async function transfer() {
+            const to = document.getElementById('transfer-to').value;
+            const amount = parseFloat(document.getElementById('transfer-amount').value);
+
+            if (!to || !amount) {
+                showStatus('transfer-status', '送金先と金額を入力してください', 'error');
+                return;
+            }
+
+            try {
+                addLog(`送金試行: ${to}へ ${amount}円`, 'info');
+
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+
+                // セキュアサーバーの場合、CSRFトークンを追加
+                const csrfToken = getCSRFToken();
+                if (currentServer === 'secure' && csrfToken) {
+                    headers['X-CSRF-Token'] = csrfToken;
+                    addLog('CSRFトークンをヘッダーに追加', 'info');
+                }
+
+                const response = await fetch(`${getAPIUrl()}/api/transfer`, {
+                    method: 'POST',
+                    headers: headers,
+                    credentials: 'include',
+                    body: JSON.stringify({ to, amount })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // 残高を更新（sessionStorageも更新）
+                    const userInfo = getUserInfo();
+                    setUserInfo(userInfo.username, data.new_balance);
+
+                    document.getElementById('current-balance').textContent = data.new_balance.toLocaleString();
+                    addLog(`送金成功: ${to}へ ${amount}円`, 'success');
+                    showStatus('transfer-status', `送金が完了しました。新しい残高: ¥${data.new_balance.toLocaleString()}`, 'success');
+                } else {
+                    addLog(`送金失敗: ${data.error}`, 'error');
+                    showStatus('transfer-status', data.error, 'error');
+                }
+            } catch (error) {
+                addLog(`エラー: ${error.message}`, 'error');
+                showStatus('transfer-status', '送金に失敗しました', 'error');
+            }
+        }
+
+        async function changePassword() {
+            const newPassword = document.getElementById('new-password').value;
+
+            if (!newPassword) {
+                showStatus('password-status', '新しいパスワードを入力してください', 'error');
+                return;
+            }
+
+            try {
+                addLog(`パスワード変更試行`, 'info');
+
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+
+                const csrfToken = getCSRFToken();
+                if (currentServer === 'secure' && csrfToken) {
+                    headers['X-CSRF-Token'] = csrfToken;
+                    addLog('CSRFトークンをヘッダーに追加', 'info');
+                }
+
+                const response = await fetch(`${getAPIUrl()}/api/change-password`, {
+                    method: 'POST',
+                    headers: headers,
+                    credentials: 'include',
+                    body: JSON.stringify({ new_password: newPassword })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    addLog(`パスワード変更成功`, 'success');
+                    showStatus('password-status', 'パスワードが変更されました', 'success');
+                } else {
+                    addLog(`パスワード変更失敗: ${data.error}`, 'error');
+                    showStatus('password-status', data.error, 'error');
+                }
+            } catch (error) {
+                addLog(`エラー: ${error.message}`, 'error');
+                showStatus('password-status', 'パスワード変更に失敗しました', 'error');
+            }
+        }
+
+        async function simulateCSRFAttack() {
+            const to = document.getElementById('attack-to').value;
+            const amount = parseFloat(document.getElementById('attack-amount').value);
+
+            if (!to || !amount) {
+                showStatus('attack-status', '送金先と金額を入力してください', 'error');
+                return;
+            }
+
+            addLog(`CSRF攻撃シミュレーション開始 (CSRFトークンなしでリクエスト)`, 'error');
+
+            try {
+                // CSRFトークンを意図的に送らない（攻撃シミュレーション）
+                const response = await fetch(`${getAPIUrl()}/api/transfer`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                        // X-CSRF-Token を意図的に含めない
+                    },
+                    credentials: 'include', // Cookieは送られる
+                    body: JSON.stringify({ to, amount })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    addLog(`CSRF攻撃成功（脆弱）: ${to}へ ${amount}円が送金されました`, 'error');
+                    showStatus('attack-status',
+                        `攻撃成功: サーバーが脆弱です。CSRFトークンなしで送金が実行されました。`,
+                        'error');
+
+                    // 残高を更新
+                    if (data.new_balance !== undefined) {
+                        document.getElementById('current-balance').textContent = data.new_balance.toLocaleString();
+                    }
+                } else {
+                    addLog(`CSRF攻撃ブロック（安全）: ${data.error}`, 'success');
+                    showStatus('attack-status',
+                        `攻撃失敗: サーバーはCSRFトークンを要求し、攻撃をブロックしました。`,
+                        'success');
+                }
+            } catch (error) {
+                addLog(`攻撃エラー: ${error.message}`, 'error');
+                showStatus('attack-status', 'リクエストに失敗しました', 'error');
+            }
+        }
+
+        // ログアウト機能
+        async function logout() {
+            try {
+                addLog('ログアウト処理開始', 'info');
+
+                // sessionStorageをクリア
+                clearCSRFToken();
+                clearUserInfo();
+
+                // UIをリセット
+                document.getElementById('user-info').style.display = 'none';
+                document.getElementById('current-user').textContent = '';
+                document.getElementById('current-balance').textContent = '';
+                document.getElementById('csrf-token-display').textContent = '';
+
+                addLog('ログアウト完了', 'success');
+            } catch (error) {
+                addLog(`ログアウトエラー: ${error.message}`, 'error');
+            }
+        }
+
+        // ページ読み込み時にsessionStorageから状態を復元
+        function restoreSessionState() {
+            const userInfo = getUserInfo();
+            const csrfToken = getCSRFToken();
+
+            if (userInfo.username && userInfo.balance) {
+                addLog('sessionStorageから状態を復元', 'info');
+
+                // ユーザー情報を復元
+                document.getElementById('current-user').textContent = userInfo.username;
+                document.getElementById('current-balance').textContent = parseFloat(userInfo.balance).toLocaleString();
+                document.getElementById('user-info').style.display = 'block';
+
+                // CSRFトークンを復元
+                if (csrfToken) {
+                    document.getElementById('csrf-token-display').textContent = csrfToken;
+                    addLog('CSRFトークンを復元', 'info');
+                } else {
+                    document.getElementById('csrf-token-display').textContent = 'CSRFトークンなし';
+                }
+
+                addLog(`ユーザー ${userInfo.username} の状態を復元しました`, 'success');
+            }
+        }
+
+        // 初期ログ
+        addLog('CSRF Protection Test 起動', 'info');
+        addLog('現在のサーバー: セキュアサーバー (8095)', 'info');
+
+        // ページ読み込み時に状態を復元
+        restoreSessionState();
+    </script>
+</body>
+</html>

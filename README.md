@@ -38,13 +38,27 @@ Webセキュリティの基礎を学ぶための実践的なGoプロジェクト
   - 5分TTL自動削除
   - 一度だけ使用可能（使用後即削除）
 
+### CSRF（Cross-Site Request Forgery）
+
+- **脆弱な実装** (Port 8094): CSRF対策なしの実装
+  - セッションCookieベース認証
+  - CSRFトークンなし
+  - SameSite属性なし（脆弱）
+  - 攻撃シミュレーション可能
+- **セキュアな実装** (Port 8095): CSRF保護あり
+  - Synchronizer Token Pattern
+  - SameSite Cookie属性設定
+  - CSRFトークン検証
+  - カスタムヘッダー（X-CSRF-Token）
+
 ### フロントエンド
 
 - テスト用Webインターフェース（Port 3000）
-- CORS、JWT、Nonce機能の対話的なテスト
+- CORS、JWT、Nonce、CSRF機能の対話的なテスト
 - JWT詳細表示（jwt.io風のUI）
 - 署名検証機能（Web Crypto API）
 - Nonceリプレイアタックのデモ
+- CSRF攻撃シミュレーション
 
 ## 技術スタック
 
@@ -97,6 +111,8 @@ docker-compose logs -f
 | CORSセキュア | http://localhost:8082 | セキュア実装 |
 | JWT Full (Redis) | http://localhost:8090 | JWT + Redis |
 | Nonce (MITM対策) | http://localhost:8093 | Nonce + JWT |
+| CSRF脆弱 | http://localhost:8094 | CSRF対策なし |
+| CSRFセキュア | http://localhost:8095 | CSRF保護あり |
 | Redis | localhost:6379 | トークンストレージ |
 
 ## 使用方法
@@ -154,7 +170,33 @@ open http://localhost:3000/nonce/index.html
 #    - セキュリティ強化を確認
 ```
 
-### 4. Redisでトークン・Nonce管理を確認
+### 4. CSRFテスト（Cross-Site Request Forgery）
+
+```bash
+# CSRFテストページにアクセス
+open http://localhost:3000/csrf/index.html
+
+# 1. セキュアサーバーでテスト（デフォルト）
+#    - ログイン: user1 / password1
+#    - CSRFトークンが表示される
+#    - 送金を実行（成功）
+#    - CSRF攻撃シミュレーションを実行
+#      → 「攻撃失敗」（CSRFトークンがないため拒否される）
+
+# 2. 脆弱なサーバーでテスト
+#    - サーバーを「脆弱なサーバー (8094)」に切り替え
+#    - ログイン
+#    - 送金を実行（成功）
+#    - CSRF攻撃シミュレーションを実行
+#      → 「攻撃成功」（CSRFトークンなしで実行される - 脆弱性を確認）
+
+# 3. 実際のCSRF攻撃の仕組みを理解
+#    - 攻撃シミュレーションは、CSRFトークンを意図的に送信しない
+#    - セキュアサーバーではブロックされる
+#    - 脆弱なサーバーでは実行されてしまう
+```
+
+### 5. Redisでトークン・Nonce管理を確認
 
 ```bash
 # Redisコンテナに接続
@@ -178,7 +220,7 @@ GET refresh:{token}
 GET nonce:user1:{nonce}
 ```
 
-### 5. API直接テスト
+### 6. API直接テスト
 
 ```bash
 # ログイン
@@ -215,7 +257,8 @@ curl -X POST http://localhost:8090/api/logout \
 ├── docs/                       # ドキュメント
 │   ├── 01-cors.md             # CORS学習資料
 │   ├── 02-jwt.md              # JWT学習資料
-│   └── 03-nonce.md            # Nonce学習資料
+│   ├── 03-nonce.md            # Nonce学習資料
+│   └── 04-csrf.md             # CSRF学習資料
 │
 ├── examples/                   # サンプル実装
 │   ├── cors/
@@ -227,8 +270,14 @@ curl -X POST http://localhost:8090/api/logout \
 │   │   └── 8090-full/         # JWT完全実装（Redis統合）
 │   │       └── main.go
 │   │
-│   └── nonce/
-│       └── 8093-nonce/        # Nonce実装（JWT認証必須）
+│   ├── nonce/
+│   │   └── 8093-nonce/        # Nonce実装（JWT認証必須）
+│   │       └── main.go
+│   │
+│   └── csrf/
+│       ├── 8094-vulnerable/   # CSRF脆弱な実装
+│       │   └── main.go
+│       └── 8095-secure/       # CSRFセキュアな実装
 │           └── main.go
 │
 └── frontend/                   # フロントエンド
@@ -236,8 +285,10 @@ curl -X POST http://localhost:8090/api/logout \
     │   └── index.html         # CORSテストUI
     ├── jwt/
     │   └── index.html         # JWTテストUI
-    └── nonce/
-        └── index.html         # NonceテストUI
+    ├── nonce/
+    │   └── index.html         # NonceテストUI
+    └── csrf/
+        └── index.html         # CSRFテストUI
 ```
 
 ## 学習トピック
@@ -289,7 +340,24 @@ curl -X POST http://localhost:8090/api/logout \
 - Redis Transactionでアトミック検証
 - 5分TTL自動削除
 
-### 4. Redis統合（実務パターン）
+### 4. CSRF (Cross-Site Request Forgery)
+
+詳細: [docs/04-csrf.md](docs/04-csrf.md)
+
+- CSRF攻撃の仕組み
+- Synchronizer Token Pattern
+- SameSite Cookie属性
+- Double Submit Cookie Pattern
+- カスタムヘッダーによる防御
+
+**主要な対策:**
+- CSRFトークン（必須）
+- SameSite Cookie属性（Lax以上）
+- カスタムヘッダー（X-CSRF-Token）
+- Refererチェック（補助的）
+- 重要な操作はPOST/PUT/DELETE
+
+### 5. Redis統合（実務パターン）
 
 **メモリストアの問題点:**
 - サーバー再起動でデータ消失
@@ -541,7 +609,9 @@ MIT License
 ## 参考資料
 
 - [OWASP CORS Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Origin_Resource_Sharing_Cheat_Sheet.html)
+- [OWASP CSRF Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)
 - [JWT.io](https://jwt.io/)
 - [RFC 7519 - JSON Web Token](https://tools.ietf.org/html/rfc7519)
 - [Redis Documentation](https://redis.io/documentation)
 - [golang-jwt/jwt](https://github.com/golang-jwt/jwt)
+- [MDN - SameSite cookies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite)

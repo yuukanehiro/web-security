@@ -104,6 +104,64 @@ services:
     networks:
       - web-security-network
 
+  # CSRF脆弱な実装 - ポート8094
+  csrf-vulnerable:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: web-security-csrf-vulnerable
+    working_dir: /app/examples/csrf/8094-vulnerable
+    ports:
+      - "8094:8094"
+    volumes:
+      - .:/app
+      - go-modules:/go/pkg/mod
+    environment:
+      - ENV=development
+      - PORT=8094
+    command: sh -c "cd /app/examples/csrf/8094-vulnerable && go run main.go"
+    networks:
+      - web-security-network
+
+  # CSRFセキュアな実装 - ポート8095
+  csrf-secure:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: web-security-csrf-secure
+    working_dir: /app/examples/csrf/8095-secure
+    ports:
+      - "8095:8095"
+    volumes:
+      - .:/app
+      - go-modules:/go/pkg/mod
+    environment:
+      - ENV=development
+      - PORT=8095
+    command: sh -c "cd /app/examples/csrf/8095-secure && go run main.go"
+    networks:
+      - web-security-network
+
+  # JWT + CSRF実装 - ポート8096
+  jwt-csrf:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: web-security-jwt-csrf
+    working_dir: /app/examples/csrf/8096-jwt-csrf
+    ports:
+      - "8096:8096"
+    volumes:
+      - .:/app
+      - go-modules:/go/pkg/mod
+    environment:
+      - ENV=development
+      - PORT=8096
+      - JWT_SECRET=my-super-secret-jwt-key-please-change-in-production-256-bits
+    command: sh -c "cd /app/examples/csrf/8096-jwt-csrf && go run main.go"
+    networks:
+      - web-security-network
+
   # Redis
   redis:
     image: redis:7-alpine
@@ -132,6 +190,9 @@ services:
       - cors-secure
       - jwt-full
       - nonce
+      - csrf-vulnerable
+      - csrf-secure
+      - jwt-csrf
 
 volumes:
   go-modules:
