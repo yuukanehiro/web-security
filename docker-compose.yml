@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # 標準的なCORS実装 (rs/cors使用) - ポート8080
+  cors-standard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: web-security-cors-standard
+    working_dir: /app/examples/cors/8080-standard
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - go-modules:/go/pkg/mod
+    environment:
+      - ENV=development
+      - PORT=8080
+    command: sh -c "cd /app/examples/cors/8080-standard && air -c ../../../.air.toml"
+    networks:
+      - web-security-network
+
+  # 脆弱なCORS実装 - ポート8081
+  cors-vulnerable:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: web-security-cors-vulnerable
+    working_dir: /app/examples/cors/8081-vulnerable
+    ports:
+      - "8081:8081"
+    volumes:
+      - .:/app
+      - go-modules:/go/pkg/mod
+    environment:
+      - ENV=development
+      - PORT=8081
+    command: sh -c "cd /app/examples/cors/8081-vulnerable && go run main.go"
+    networks:
+      - web-security-network
+
+  # セキュアなCORS実装 - ポート8082
+  cors-secure:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: web-security-cors-secure
+    working_dir: /app/examples/cors/8082-secure
+    ports:
+      - "8082:8082"
+    volumes:
+      - .:/app
+      - go-modules:/go/pkg/mod
+    environment:
+      - ENV=development
+      - PORT=8082
+    command: sh -c "cd /app/examples/cors/8082-secure && go run main.go"
+    networks:
+      - web-security-network
+
+  # フロントエンド（CORS テスト用）
+  frontend:
+    image: nginx:alpine
+    container_name: web-security-frontend
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    networks:
+      - web-security-network
+    depends_on:
+      - cors-standard
+      - cors-vulnerable
+      - cors-secure
+
+volumes:
+  go-modules:
+
+networks:
+  web-security-network:
+    driver: bridge

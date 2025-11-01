@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Tutorial - Web Security Learning</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .nav-tabs a {
+            padding: 10px 20px;
+            text-decoration: none;
+            color: #666;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .nav-tabs a:hover,
+        .nav-tabs a.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .step {
+            margin-bottom: 40px;
+            padding: 25px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .step.completed {
+            border-color: #48bb78;
+            background: #f0fff4;
+        }
+
+        .step-number {
+            position: absolute;
+            top: -15px;
+            left: 20px;
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .step.completed .step-number {
+            background: #48bb78;
+        }
+
+        h2 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            margin-left: 45px;
+        }
+
+        .step-content {
+            margin-top: 15px;
+        }
+
+        .explanation {
+            background: #f7fafc;
+            padding: 15px;
+            border-left: 4px solid #4299e1;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .code-block .comment {
+            color: #a0aec0;
+        }
+
+        .code-block .keyword {
+            color: #f687b3;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            background: #667eea;
+            color: white;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .result.success {
+            background: #f0fff4;
+            border: 1px solid #48bb78;
+            color: #22543d;
+        }
+
+        .result.error {
+            background: #fff5f5;
+            border: 1px solid #f56565;
+            color: #742a2a;
+        }
+
+        .checkpoint {
+            background: #fffaf0;
+            border: 2px solid #ed8936;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+
+        .checkpoint h3 {
+            color: #c05621;
+            margin-bottom: 10px;
+        }
+
+        ul {
+            margin-left: 20px;
+            line-height: 1.8;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CORSチュートリアル</h1>
+        <p class="subtitle">ステップバイステップでCORSを理解しよう</p>
+
+        <div class="nav-tabs">
+            <a href="index.html">基本テスト</a>
+            <a href="advanced.html">詳細テスト</a>
+            <a href="tutorial.html" class="active">チュートリアル</a>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-bar-fill" id="progress"></div>
+        </div>
+
+        <!-- ステップ1: Same-Origin Policy -->
+        <div class="step" id="step1">
+            <div class="step-number">1</div>
+            <h2>Same-Origin Policyを理解する</h2>
+            <div class="step-content">
+                <div class="explanation">
+                    <strong>Same-Origin Policy（同一オリジンポリシー）</strong>とは、Webブラウザのセキュリティ機能で、
+                    異なるオリジン（ドメイン）からのリソースへのアクセスを制限します。
+                </div>
+
+                <p><strong>オリジンの構成要素：</strong></p>
+                <div class="code-block">
+https://example.com:443/path
+└─┬─┘  └────┬─────┘└┬┘
+スキーム   ホスト   ポート
+
+<span class="comment">// 同一オリジン</span>
+https://example.com/page1 <span class="keyword">と</span> https://example.com/page2 ✅
+
+<span class="comment">// 異なるオリジン</span>
+https://example.com <span class="keyword">と</span> http://example.com ❌ (スキーム違い)
+https://example.com <span class="keyword">と</span> https://api.example.com ❌ (ホスト違い)
+https://example.com <span class="keyword">と</span> https://example.com:8080 ❌ (ポート違い)
+                </div>
+
+                <div class="checkpoint">
+                    <h3>🎯 チェックポイント</h3>
+                    <p>開発者ツール（F12）を開いて、以下を確認してください：</p>
+                    <ul>
+                        <li>現在のページのオリジンは何ですか？</li>
+                        <li>これから接続するAPIサーバー（localhost:8080）は同一オリジンですか？</li>
+                    </ul>
+                </div>
+
+                <button onclick="completeStep(1)">理解しました →</button>
+            </div>
+        </div>
+
+        <!-- ステップ2: 同一オリジンリクエスト -->
+        <div class="step" id="step2">
+            <div class="step-number">2</div>
+            <h2>同一オリジン vs クロスオリジン</h2>
+            <div class="step-content">
+                <div class="explanation">
+                    まず、同一オリジンへのリクエストは問題なく動作することを確認します。
+                    その後、クロスオリジン（異なるポート）へのリクエストがどうなるか見てみましょう。
+                </div>
+
+                <p><strong>現在のページ:</strong> <code id="current-origin"></code></p>
+                <p><strong>リクエスト先:</strong> <code>http://localhost:8080</code></p>
+
+                <button onclick="testStep2()">クロスオリジンリクエストを送信</button>
+                <div id="step2-result"></div>
+
+                <div class="checkpoint">
+                    <h3>🎯 何が起こったか確認しよう</h3>
+                    <ul>
+                        <li>リクエストは成功しましたか？</li>
+                        <li>開発者ツールのNetworkタブでリクエストヘッダーを確認してください</li>
+                        <li>"Origin"ヘッダーが自動的に付与されていますか？</li>
+                    </ul>
+                </div>
+
+                <button onclick="completeStep(2)" id="step2-btn" disabled>次へ →</button>
+            </div>
+        </div>
+
+        <!-- ステップ3: CORSヘッダーの確認 -->
+        <div class="step" id="step3">
+            <div class="step-number">3</div>
+            <h2>CORSレスポンスヘッダーを確認する</h2>
+            <div class="step-content">
+                <div class="explanation">
+                    サーバーは<code>Access-Control-Allow-Origin</code>ヘッダーで、
+                    どのオリジンからのアクセスを許可するかを指定します。
+                </div>
+
+                <button onclick="testStep3()">ヘッダーを確認する</button>
+                <div id="step3-result"></div>
+
+                <div class="code-block">
+<span class="comment">// サーバーのレスポンスヘッダー（期待値）</span>
+Access-Control-Allow-Origin: http://localhost:3000
+Access-Control-Allow-Credentials: true
+Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+                </div>
+
+                <div class="checkpoint">
+                    <h3>🎯 確認事項</h3>
+                    <ul>
+                        <li>Access-Control-Allow-Originに現在のオリジンが含まれていますか？</li>
+                        <li>もし含まれていなければ、どうなりますか？</li>
+                    </ul>
+                </div>
+
+                <button onclick="completeStep(3)" id="step3-btn" disabled>次へ →</button>
+            </div>
+        </div>
+
+        <!-- ステップ4: プリフライトリクエスト -->
+        <div class="step" id="step4">
+            <div class="step-number">4</div>
+            <h2>プリフライトリクエストを体験する</h2>
+            <div class="step-content">
+                <div class="explanation">
+                    特定の条件下では、ブラウザは本リクエストの前に<strong>OPTIONSメソッド</strong>で
+                    プリフライトリクエストを送信します。
+                </div>
+
+                <p><strong>プリフライトが発生する条件：</strong></p>
+                <ul>
+                    <li>GET、HEAD、POST以外のメソッド（PUT、DELETE等）</li>
+                    <li>Content-Typeがapplication/json等</li>
+                    <li>カスタムヘッダーを含む</li>
+                </ul>
+
+                <p style="margin-top: 15px;"><strong>テスト:</strong> POSTリクエスト + Content-Type: application/json</p>
+                <button onclick="testStep4()">プリフライトリクエストを発生させる</button>
+                <div id="step4-result"></div>
+
+                <div class="checkpoint">
+                    <h3>🎯 Networkタブで確認しよう</h3>
+                    <ul>
+                        <li>OPTIONSメソッドのリクエストが表示されましたか？（プリフライト）</li>
+                        <li>その後にPOSTリクエストが送信されましたか？</li>
+                        <li>プリフライトリクエストのレスポンスヘッダーを確認してください</li>
+                    </ul>
+                </div>
+
+                <button onclick="completeStep(4)" id="step4-btn" disabled>次へ →</button>
+            </div>
+        </div>
+
+        <!-- ステップ5: 認証情報付きリクエスト -->
+        <div class="step" id="step5">
+            <div class="step-number">5</div>
+            <h2>認証情報（Cookie）を含むリクエスト</h2>
+            <div class="step-content">
+                <div class="explanation">
+                    Cookieを含むクロスオリジンリクエストには、特別な設定が必要です。
+                </div>
+
+                <div class="code-block">
+<span class="comment">// クライアント側</span>
+fetch(url, {
+    credentials: <span class="keyword">'include'</span>  <span class="comment">// Cookieを送信</span>
+})
+
+<span class="comment">// サーバー側（必須）</span>
+Access-Control-Allow-Origin: http://localhost:3000  <span class="comment">// * は使用不可</span>
+Access-Control-Allow-Credentials: true
+                </div>
+
+                <button onclick="testStep5()">認証情報付きリクエストを送信</button>
+                <div id="step5-result"></div>
+
+                <div class="checkpoint">
+                    <h3>🎯 重要なポイント</h3>
+                    <ul>
+                        <li>credentials: 'include'を指定すると、Cookieが送信されます</li>
+                        <li>この場合、サーバーは<code>Access-Control-Allow-Origin: *</code>を使用できません</li>
+                        <li>具体的なオリジンを指定する必要があります</li>
+                    </ul>
+                </div>
+
+                <button onclick="completeStep(5)" id="step5-btn" disabled>次へ →</button>
+            </div>
+        </div>
+
+        <!-- ステップ6: 脆弱な設定を理解する -->
+        <div class="step" id="step6">
+            <div class="step-number">6</div>
+            <h2>脆弱なCORS設定の危険性</h2>
+            <div class="step-content">
+                <div class="explanation" style="border-left-color: #f56565; background: #fff5f5;">
+                    <strong>⚠️ 危険な設定:</strong> リクエストのOriginをそのまま反映する実装
+                </div>
+
+                <div class="code-block">
+<span class="comment">// ❌ 非常に危険！</span>
+origin := r.Header.Get(<span class="keyword">"Origin"</span>)
+w.Header().Set(<span class="keyword">"Access-Control-Allow-Origin"</span>, origin)
+w.Header().Set(<span class="keyword">"Access-Control-Allow-Credentials"</span>, <span class="keyword">"true"</span>)
+
+<span class="comment">// この設定では、任意のサイトから認証情報付きでアクセスできてしまう！</span>
+                </div>
+
+                <p>実際に脆弱なサーバー（ポート8081）にアクセスしてみましょう：</p>
+                <button onclick="testStep6()">脆弱なサーバーにアクセス</button>
+                <div id="step6-result"></div>
+
+                <div class="checkpoint">
+                    <h3>🎯 なぜ危険なのか</h3>
+                    <ul>
+                        <li>悪意のあるサイトが、ユーザーのCookieを使ってAPIにアクセスできる</li>
+                        <li>個人情報や機密データが盗まれる可能性がある</li>
+                        <li>必ずホワイトリスト方式でオリジンを検証すべき</li>
+                    </ul>
+                </div>
+
+                <button onclick="completeStep(6)" id="step6-btn" disabled>次へ →</button>
+            </div>
+        </div>
+
+        <!-- ステップ7: セキュアな実装 -->
+        <div class="step" id="step7">
+            <div class="step-number">7</div>
+            <h2>セキュアなCORS実装</h2>
+            <div class="step-content">
+                <div class="explanation" style="border-left-color: #48bb78; background: #f0fff4;">
+                    <strong>✅ 安全な実装:</strong> ホワイトリストによるオリジン検証
+                </div>
+
+                <div class="code-block">
+<span class="comment">// ✅ セキュアな実装</span>
+<span class="keyword">func</span> isAllowedOrigin(origin <span class="keyword">string</span>) <span class="keyword">bool</span> {
+    allowedOrigins := []<span class="keyword">string</span>{
+        <span class="keyword">"https://example.com"</span>,
+        <span class="keyword">"https://www.example.com"</span>,
+        <span class="keyword">"http://localhost:3000"</span>,  <span class="comment">// 開発環境用</span>
+    }
+
+    <span class="keyword">for</span> _, allowed := <span class="keyword">range</span> allowedOrigins {
+        <span class="keyword">if</span> origin == allowed {
+            <span class="keyword">return true</span>
+        }
+    }
+    <span class="keyword">return false</span>
+}
+
+<span class="comment">// ミドルウェアでの使用</span>
+<span class="keyword">if</span> isAllowedOrigin(origin) {
+    w.Header().Set(<span class="keyword">"Access-Control-Allow-Origin"</span>, origin)
+}
+                </div>
+
+                <p>セキュアなサーバー（ポート8082）にアクセスしてみましょう：</p>
+                <button onclick="testStep7()">セキュアなサーバーにアクセス</button>
+                <div id="step7-result"></div>
+
+                <div class="checkpoint">
+                    <h3>🎯 ベストプラクティス</h3>
+                    <ul>
+                        <li>許可するオリジンを明示的にリストアップ</li>
+                        <li>本番環境では必ずHTTPSを使用</li>
+                        <li>必要最小限のメソッドとヘッダーのみ許可</li>
+                        <li>環境変数で設定を管理</li>
+                    </ul>
+                </div>
+
+                <button onclick="completeStep(7)" id="step7-btn" disabled>完了！</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let completedSteps = [];
+
+        // 現在のオリジンを表示
+        document.getElementById('current-origin').textContent = window.location.origin;
+
+        function completeStep(stepNumber) {
+            if (!completedSteps.includes(stepNumber)) {
+                completedSteps.push(stepNumber);
+                document.getElementById('step' + stepNumber).classList.add('completed');
+                updateProgress();
+            }
+
+            // 次のステップを有効化
+            if (stepNumber < 7) {
+                const nextStep = stepNumber + 1;
+                document.getElementById('step' + nextStep).scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        function updateProgress() {
+            const progress = (completedSteps.length / 7) * 100;
+            document.getElementById('progress').style.width = progress + '%';
+
+            if (completedSteps.length === 7) {
+                alert('🎉 チュートリアル完了！おめでとうございます！\n\nCORSの基本をマスターしました。\n次は実際のプロジェクトで実装してみましょう。');
+            }
+        }
+
+        async function testStep2() {
+            const resultDiv = document.getElementById('step2-result');
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch('http://localhost:8080/api/cors-test');
+                const data = await response.json();
+
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ 成功！\n\nクロスオリジンリクエストが成功しました。\nサーバーがCORSヘッダーを返してくれたためです。\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+
+                document.getElementById('step2-btn').disabled = false;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}\n\nサーバーが起動していることを確認してください。`;
+            }
+        }
+
+        async function testStep3() {
+            const resultDiv = document.getElementById('step3-result');
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch('http://localhost:8080/api/cors-test');
+
+                let headerInfo = 'CORSレスポンスヘッダー:\n\n';
+                headerInfo += `Access-Control-Allow-Origin: ${response.headers.get('access-control-allow-origin') || '(なし)'}\n`;
+                headerInfo += `Access-Control-Allow-Credentials: ${response.headers.get('access-control-allow-credentials') || '(なし)'}\n`;
+                headerInfo += `Access-Control-Allow-Methods: ${response.headers.get('access-control-allow-methods') || '(なし)'}\n`;
+
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ ヘッダー取得成功\n\n${headerInfo}`;
+
+                document.getElementById('step3-btn').disabled = false;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        async function testStep4() {
+            const resultDiv = document.getElementById('step4-result');
+            resultDiv.innerHTML = '送信中...';
+
+            console.log('🔵 プリフライトリクエストを発生させます');
+            console.log('開発者ツールのNetworkタブを確認してください！');
+
+            try {
+                const response = await fetch('http://localhost:8080/api/cors-test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ tutorial: 'step4' })
+                });
+
+                const data = await response.json();
+
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ プリフライトリクエスト成功！\n\nNetworkタブを確認してください：\n1. OPTIONSリクエスト（プリフライト）\n2. POSTリクエスト（本リクエスト）\nの2つが表示されているはずです。\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+
+                document.getElementById('step4-btn').disabled = false;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        async function testStep5() {
+            const resultDiv = document.getElementById('step5-result');
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch('http://localhost:8080/api/cors-credentials', {
+                    method: 'GET',
+                    credentials: 'include'  // Cookieを含める
+                });
+
+                const data = await response.json();
+
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ 認証情報付きリクエスト成功！\n\ncredentials: 'include'により、Cookieが送信されました。\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+
+                document.getElementById('step5-btn').disabled = false;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        async function testStep6() {
+            const resultDiv = document.getElementById('step6-result');
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch('http://localhost:8081/api/data', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `⚠️ アクセス成功（脆弱性あり）\n\nこのサーバーは任意のオリジンからアクセスできてしまいます。\n実際の攻撃では、悪意のあるサイトがユーザーの機密情報を盗み出すことができます。\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+
+                document.getElementById('step6-btn').disabled = false;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        async function testStep7() {
+            const resultDiv = document.getElementById('step7-result');
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch('http://localhost:8082/api/data', {
+                    method: 'GET'
+                });
+
+                // このリクエストは、現在のオリジンがホワイトリストに含まれていれば成功します
+                const data = await response.json();
+
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ セキュアなサーバーへのアクセス成功！\n\nこのサーバーはホワイトリスト方式でオリジンを検証しています。\n許可されたオリジンからのみアクセスが可能です。\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+
+                document.getElementById('step7-btn').disabled = false;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}\n\n現在のオリジン（${window.location.origin}）がホワイトリストに含まれていない可能性があります。`;
+            }
+        }
+
+        console.log('📚 CORSチュートリアル開始！');
+        console.log('開発者ツール（F12）を開いて、一緒に学習を進めましょう。');
+    </script>
+</body>
+</html>

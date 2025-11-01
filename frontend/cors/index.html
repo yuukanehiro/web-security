@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Test - Web Security Learning</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+        }
+
+        h2 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(245, 101, 101, 0.4);
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .result.success {
+            background: #f0fff4;
+            border: 1px solid #48bb78;
+            color: #22543d;
+        }
+
+        .result.error {
+            background: #fff5f5;
+            border: 1px solid #f56565;
+            color: #742a2a;
+        }
+
+        .info-box {
+            background: #ebf8ff;
+            border-left: 4px solid #4299e1;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .warning-box {
+            background: #fffaf0;
+            border-left: 4px solid #ed8936;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        code {
+            background: #f7fafc;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .nav-tabs a {
+            padding: 10px 20px;
+            text-decoration: none;
+            color: #666;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .nav-tabs a:hover,
+        .nav-tabs a.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CORS Testing Tool</h1>
+        <p class="subtitle">Cross-Origin Resource Sharing の動作を確認するためのテストツール</p>
+
+        <div class="nav-tabs">
+            <a href="index.html" class="active">基本テスト</a>
+            <a href="advanced.html">詳細テスト</a>
+            <a href="tutorial.html">チュートリアル</a>
+        </div>
+
+        <div class="info-box">
+            <strong>💡 このページについて:</strong><br>
+            このページでは、異なるCORS設定を持つサーバーに対してリクエストを送信し、ブラウザの動作を確認できます。<br>
+            開発者ツール（F12）のNetworkタブとConsoleタブを開いて確認してください。
+        </div>
+
+        <!-- セキュアなCORSサーバーへのリクエスト -->
+        <div class="test-section">
+            <h2>✅ セキュアなCORS設定 (ポート: 8082)</h2>
+            <p>ホワイトリストベースのオリジン検証を実装したサーバー</p>
+            <div class="button-group">
+                <button class="btn-success" onclick="testSecureCors()">GETリクエスト送信</button>
+                <button class="btn-success" onclick="testSecureCorsWithCredentials()">認証情報付きリクエスト</button>
+            </div>
+            <div id="secure-result"></div>
+        </div>
+
+        <!-- 脆弱なCORSサーバーへのリクエスト -->
+        <div class="test-section">
+            <h2>⚠️ 脆弱なCORS設定 (ポート: 8081)</h2>
+            <div class="warning-box">
+                <strong>警告:</strong> このサーバーは学習目的で意図的に脆弱な設定になっています。<br>
+                全てのオリジンからのリクエストを受け入れ、認証情報も許可します。
+            </div>
+            <div class="button-group">
+                <button class="btn-danger" onclick="testVulnerableCors()">GETリクエスト送信</button>
+                <button class="btn-danger" onclick="testVulnerableCorsWithCredentials()">認証情報付きリクエスト</button>
+            </div>
+            <div id="vulnerable-result"></div>
+        </div>
+
+        <!-- 標準的なCORSサーバーへのリクエスト -->
+        <div class="test-section">
+            <h2>🔧 標準的なCORS設定 (ポート: 8080)</h2>
+            <p>rs/cors ライブラリを使用した実装</p>
+            <div class="button-group">
+                <button class="btn-primary" onclick="testStandardCors()">CORSテスト</button>
+                <button class="btn-primary" onclick="testStandardCorsCredentials()">認証情報テスト</button>
+            </div>
+            <div id="standard-result"></div>
+        </div>
+    </div>
+
+    <script>
+        // セキュアなCORSサーバーへのリクエスト
+        async function testSecureCors() {
+            const resultDiv = document.getElementById('secure-result');
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch('http://localhost:8082/api/data', {
+                    method: 'GET',
+                });
+
+                const data = await response.json();
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ 成功!\n\nStatus: ${response.status}\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}\n\n開発者ツールのConsoleで詳細を確認してください。`;
+            }
+        }
+
+        async function testSecureCorsWithCredentials() {
+            const resultDiv = document.getElementById('secure-result');
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch('http://localhost:8082/api/data', {
+                    method: 'GET',
+                    credentials: 'include', // Cookieを含める
+                });
+
+                const data = await response.json();
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ 成功!\n\nStatus: ${response.status}\nCredentials: include\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}\n\n原因: オリジンがホワイトリストに含まれていない可能性があります。`;
+            }
+        }
+
+        // 脆弱なCORSサーバーへのリクエスト
+        async function testVulnerableCors() {
+            const resultDiv = document.getElementById('vulnerable-result');
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch('http://localhost:8081/api/data', {
+                    method: 'GET',
+                });
+
+                const data = await response.json();
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `⚠️ リクエスト成功（脆弱性あり）\n\nStatus: ${response.status}\n\nResponse:\n${JSON.stringify(data, null, 2)}\n\n注意: 任意のオリジンからアクセスできてしまいます！`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        async function testVulnerableCorsWithCredentials() {
+            const resultDiv = document.getElementById('vulnerable-result');
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch('http://localhost:8081/api/data', {
+                    method: 'GET',
+                    credentials: 'include',
+                });
+
+                const data = await response.json();
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `⚠️ 認証情報付きリクエスト成功（重大な脆弱性！）\n\nStatus: ${response.status}\nCredentials: include\n\nResponse:\n${JSON.stringify(data, null, 2)}\n\n警告: 機密情報が任意のサイトから取得できてしまいます！`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        // 標準的なCORSサーバーへのリクエスト
+        async function testStandardCors() {
+            const resultDiv = document.getElementById('standard-result');
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch('http://localhost:8080/api/cors-test', {
+                    method: 'GET',
+                });
+
+                const data = await response.json();
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ 成功!\n\nStatus: ${response.status}\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        async function testStandardCorsCredentials() {
+            const resultDiv = document.getElementById('standard-result');
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch('http://localhost:8080/api/cors-credentials', {
+                    method: 'GET',
+                    credentials: 'include',
+                });
+
+                const data = await response.json();
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ 成功!\n\nStatus: ${response.status}\nCredentials: include\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        console.log('🔍 CORS Testing Tool Loaded');
+        console.log('開発者ツールのNetworkタブを開いて、CORSヘッダーを確認してください。');
+    </script>
+</body>
+</html>

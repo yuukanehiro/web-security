@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS Advanced Test - Web Security Learning</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .nav-tabs a {
+            padding: 10px 20px;
+            text-decoration: none;
+            color: #666;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .nav-tabs a:hover,
+        .nav-tabs a.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+        }
+
+        h2 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        h3 {
+            color: #666;
+            margin: 20px 0 10px 0;
+            font-size: 1.1em;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        textarea {
+            font-family: 'Courier New', monospace;
+            min-height: 100px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #718096;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4a5568;
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .result.success {
+            background: #f0fff4;
+            border: 1px solid #48bb78;
+            color: #22543d;
+        }
+
+        .result.error {
+            background: #fff5f5;
+            border: 1px solid #f56565;
+            color: #742a2a;
+        }
+
+        .result.info {
+            background: #ebf8ff;
+            border: 1px solid #4299e1;
+            color: #2c5282;
+        }
+
+        .info-box {
+            background: #ebf8ff;
+            border-left: 4px solid #4299e1;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .headers-display {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+
+        .header-row {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 10px;
+            padding: 8px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .header-row:last-child {
+            border-bottom: none;
+        }
+
+        .header-name {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .header-value {
+            color: #2d3748;
+            word-break: break-all;
+        }
+
+        code {
+            background: #f7fafc;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CORS Advanced Testing Tool</h1>
+        <p class="subtitle">プリフライトリクエスト、カスタムヘッダー、詳細なレスポンス分析</p>
+
+        <div class="nav-tabs">
+            <a href="index.html">基本テスト</a>
+            <a href="advanced.html" class="active">詳細テスト</a>
+            <a href="tutorial.html">チュートリアル</a>
+        </div>
+
+        <div class="info-box">
+            <strong>💡 このページについて:</strong><br>
+            カスタムヘッダーやPOSTリクエストなど、プリフライトリクエストが発生するケースをテストできます。<br>
+            開発者ツール（F12）のNetworkタブで、OPTIONSリクエスト（プリフライト）を確認してください。
+        </div>
+
+        <!-- カスタムリクエストビルダー -->
+        <div class="test-section">
+            <h2>🔧 カスタムリクエストビルダー</h2>
+            <p>自由にリクエストを構成して、CORS動作を確認できます</p>
+
+            <div class="form-group">
+                <label for="target-url">リクエスト先URL:</label>
+                <select id="target-url">
+                    <option value="http://localhost:8080/api/cors-test">標準CORS (8080) - /api/cors-test</option>
+                    <option value="http://localhost:8081/api/data">脆弱CORS (8081) - /api/data</option>
+                    <option value="http://localhost:8082/api/data">セキュアCORS (8082) - /api/data</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="http-method">HTTPメソッド:</label>
+                <select id="http-method">
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="DELETE">DELETE</option>
+                </select>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="include-credentials">
+                <label for="include-credentials">認証情報を含める（credentials: 'include'）</label>
+            </div>
+
+            <h3>カスタムヘッダー</h3>
+            <div class="checkbox-group">
+                <input type="checkbox" id="add-content-type">
+                <label for="add-content-type">Content-Type: application/json</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="add-authorization">
+                <label for="add-authorization">Authorization: Bearer token123</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="add-custom-header">
+                <label for="add-custom-header">X-Custom-Header: custom-value</label>
+            </div>
+
+            <div class="form-group" id="request-body-group" style="display: none;">
+                <label for="request-body">リクエストボディ（JSON）:</label>
+                <textarea id="request-body">{"key": "value", "test": true}</textarea>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="sendCustomRequest()">リクエスト送信</button>
+                <button class="btn-secondary" onclick="clearResults()">結果をクリア</button>
+            </div>
+
+            <div id="custom-result"></div>
+            <div id="headers-display"></div>
+        </div>
+
+        <!-- プリフライトリクエストの解説 -->
+        <div class="test-section">
+            <h2>📚 プリフライトリクエストとは</h2>
+            <p>以下の条件のいずれかに該当する場合、ブラウザは本リクエストの前にOPTIONSメソッドでプリフライトリクエストを送信します：</p>
+            <ul style="margin-left: 20px; margin-top: 10px; line-height: 1.8;">
+                <li>GET、HEAD、POST以外のHTTPメソッドを使用</li>
+                <li>Content-Typeが application/json, text/xml など</li>
+                <li>カスタムヘッダー（Authorization、X-Custom-Headerなど）を含む</li>
+            </ul>
+
+            <h3>テストしてみよう</h3>
+            <div class="button-group">
+                <button class="btn-primary" onclick="testSimpleRequest()">シンプルリクエスト（GET）</button>
+                <button class="btn-primary" onclick="testPreflightRequest()">プリフライト発生（POST + JSON）</button>
+                <button class="btn-primary" onclick="testCustomHeaderRequest()">プリフライト発生（カスタムヘッダー）</button>
+            </div>
+            <div id="preflight-result"></div>
+        </div>
+
+        <!-- レスポンスヘッダー分析 -->
+        <div class="test-section">
+            <h2>🔍 CORSレスポンスヘッダー分析</h2>
+            <p>各サーバーのCORS設定を確認します</p>
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="analyzeHeaders('http://localhost:8080/api/cors-test', 'standard')">標準CORS (8080)</button>
+                <button class="btn-primary" onclick="analyzeHeaders('http://localhost:8081/api/data', 'vulnerable')">脆弱CORS (8081)</button>
+                <button class="btn-primary" onclick="analyzeHeaders('http://localhost:8082/api/data', 'secure')">セキュアCORS (8082)</button>
+            </div>
+
+            <div id="standard-headers"></div>
+            <div id="vulnerable-headers"></div>
+            <div id="secure-headers"></div>
+        </div>
+    </div>
+
+    <script>
+        // HTTPメソッド変更時の処理
+        document.getElementById('http-method').addEventListener('change', function(e) {
+            const bodyGroup = document.getElementById('request-body-group');
+            if (e.target.value === 'POST' || e.target.value === 'PUT') {
+                bodyGroup.style.display = 'block';
+            } else {
+                bodyGroup.style.display = 'none';
+            }
+        });
+
+        // カスタムリクエスト送信
+        async function sendCustomRequest() {
+            const url = document.getElementById('target-url').value;
+            const method = document.getElementById('http-method').value;
+            const includeCredentials = document.getElementById('include-credentials').checked;
+            const resultDiv = document.getElementById('custom-result');
+            const headersDiv = document.getElementById('headers-display');
+
+            resultDiv.innerHTML = '送信中...';
+            headersDiv.innerHTML = '';
+
+            // ヘッダーの構築
+            const headers = {};
+
+            if (document.getElementById('add-content-type').checked) {
+                headers['Content-Type'] = 'application/json';
+            }
+
+            if (document.getElementById('add-authorization').checked) {
+                headers['Authorization'] = 'Bearer token123';
+            }
+
+            if (document.getElementById('add-custom-header').checked) {
+                headers['X-Custom-Header'] = 'custom-value';
+            }
+
+            // リクエストオプション
+            const options = {
+                method: method,
+                headers: headers
+            };
+
+            if (includeCredentials) {
+                options.credentials = 'include';
+            }
+
+            // ボディの追加（POST/PUTの場合）
+            if (method === 'POST' || method === 'PUT') {
+                try {
+                    const body = document.getElementById('request-body').value;
+                    JSON.parse(body); // バリデーション
+                    options.body = body;
+                } catch (e) {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ エラー: リクエストボディが不正なJSONです\n${e.message}`;
+                    return;
+                }
+            }
+
+            console.log('Sending request:', { url, options });
+
+            try {
+                const startTime = performance.now();
+                const response = await fetch(url, options);
+                const endTime = performance.now();
+
+                const data = await response.json();
+
+                // 結果の表示
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ リクエスト成功\n\nStatus: ${response.status} ${response.statusText}\nTime: ${(endTime - startTime).toFixed(2)}ms\nMethod: ${method}\nCredentials: ${includeCredentials ? 'include' : 'omit'}\n\nResponse Body:\n${JSON.stringify(data, null, 2)}`;
+
+                // レスポンスヘッダーの表示
+                displayResponseHeaders(response, headersDiv);
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}\n\n【よくある原因】\n1. サーバーが起動していない\n2. CORSポリシー違反（開発者ツールのConsoleを確認）\n3. ネットワークエラー`;
+                console.error('Request failed:', error);
+            }
+        }
+
+        // レスポンスヘッダーの表示
+        function displayResponseHeaders(response, container) {
+            const corsHeaders = [
+                'access-control-allow-origin',
+                'access-control-allow-methods',
+                'access-control-allow-headers',
+                'access-control-allow-credentials',
+                'access-control-max-age',
+                'access-control-expose-headers'
+            ];
+
+            let html = '<div class="headers-display"><h3>CORSレスポンスヘッダー:</h3>';
+
+            corsHeaders.forEach(headerName => {
+                const value = response.headers.get(headerName);
+                if (value) {
+                    html += `
+                        <div class="header-row">
+                            <div class="header-name">${headerName}</div>
+                            <div class="header-value">${value}</div>
+                        </div>
+                    `;
+                }
+            });
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // 結果をクリア
+        function clearResults() {
+            document.getElementById('custom-result').innerHTML = '';
+            document.getElementById('headers-display').innerHTML = '';
+        }
+
+        // シンプルリクエスト（プリフライトなし）
+        async function testSimpleRequest() {
+            const resultDiv = document.getElementById('preflight-result');
+            resultDiv.innerHTML = '送信中...';
+            resultDiv.className = 'result info';
+
+            console.log('🔵 シンプルリクエストを送信します（プリフライトなし）');
+
+            try {
+                const response = await fetch('http://localhost:8080/api/cors-test', {
+                    method: 'GET'
+                });
+
+                const data = await response.json();
+
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ シンプルリクエスト成功\n\nプリフライトリクエストは発生しませんでした。\nNetworkタブを確認すると、GETリクエストのみが表示されているはずです。\n\nStatus: ${response.status}\nResponse:\n${JSON.stringify(data, null, 2)}`;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        // プリフライトリクエスト（POST + JSON）
+        async function testPreflightRequest() {
+            const resultDiv = document.getElementById('preflight-result');
+            resultDiv.innerHTML = '送信中...';
+            resultDiv.className = 'result info';
+
+            console.log('🔵 プリフライトリクエストが発生します（POST + Content-Type: application/json）');
+
+            try {
+                const response = await fetch('http://localhost:8080/api/cors-test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ test: 'preflight' })
+                });
+
+                const data = await response.json();
+
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ プリフライトリクエスト成功\n\nNetworkタブを確認してください：\n1. OPTIONSメソッドのプリフライトリクエスト\n2. その後のPOSTリクエスト\nの2つが表示されているはずです。\n\nStatus: ${response.status}\nResponse:\n${JSON.stringify(data, null, 2)}`;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        // カスタムヘッダーでプリフライト
+        async function testCustomHeaderRequest() {
+            const resultDiv = document.getElementById('preflight-result');
+            resultDiv.innerHTML = '送信中...';
+            resultDiv.className = 'result info';
+
+            console.log('🔵 プリフライトリクエストが発生します（カスタムヘッダー）');
+
+            try {
+                const response = await fetch('http://localhost:8080/api/cors-test', {
+                    method: 'GET',
+                    headers: {
+                        'X-Custom-Header': 'test-value'
+                    }
+                });
+
+                const data = await response.json();
+
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ プリフライトリクエスト成功\n\nカスタムヘッダー（X-Custom-Header）により、\nGETリクエストでもプリフライトが発生しました。\n\nNetworkタブで確認してください：\n1. OPTIONS（プリフライト）\n2. GET（本リクエスト）\n\nStatus: ${response.status}\nResponse:\n${JSON.stringify(data, null, 2)}`;
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        // ヘッダー分析
+        async function analyzeHeaders(url, serverType) {
+            const resultDiv = document.getElementById(serverType + '-headers');
+            resultDiv.innerHTML = '<p>分析中...</p>';
+
+            try {
+                const response = await fetch(url);
+
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': response.headers.get('access-control-allow-origin'),
+                    'Access-Control-Allow-Methods': response.headers.get('access-control-allow-methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('access-control-allow-headers'),
+                    'Access-Control-Allow-Credentials': response.headers.get('access-control-allow-credentials'),
+                    'Access-Control-Max-Age': response.headers.get('access-control-max-age'),
+                };
+
+                let html = '<div class="headers-display"><h3>' + serverType.toUpperCase() + ' サーバーのCORSヘッダー:</h3>';
+
+                for (const [name, value] of Object.entries(corsHeaders)) {
+                    if (value) {
+                        html += `
+                            <div class="header-row">
+                                <div class="header-name">${name}</div>
+                                <div class="header-value">${value}</div>
+                            </div>
+                        `;
+                    } else {
+                        html += `
+                            <div class="header-row">
+                                <div class="header-name">${name}</div>
+                                <div class="header-value" style="color: #cbd5e0;">（未設定）</div>
+                            </div>
+                        `;
+                    }
+                }
+
+                html += '</div>';
+                resultDiv.innerHTML = html;
+
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ エラー: ${error.message}</div>`;
+            }
+        }
+
+        console.log('🔍 CORS Advanced Testing Tool Loaded');
+        console.log('開発者ツール（F12）→ Network タブを開いて、リクエストを監視してください。');
+    </script>
+</body>
+</html>
