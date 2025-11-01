@@ -30,10 +30,10 @@ https://example.com:443/path
 
 | URL | 同一オリジン? | 理由 |
 |-----|--------------|------|
-| `https://example.com/page1` と `https://example.com/page2` | ✅ Yes | 全て同じ |
-| `http://example.com` と `https://example.com` | ❌ No | スキームが異なる |
-| `https://example.com` と `https://example.com:8080` | ❌ No | ポートが異なる |
-| `https://example.com` と `https://api.example.com` | ❌ No | ホストが異なる |
+| `https://example.com/page1` と `https://example.com/page2` | Yes | 全て同じ |
+| `http://example.com` と `https://example.com` | No | スキームが異なる |
+| `https://example.com` と `https://example.com:8080` | No | ポートが異なる |
+| `https://example.com` と `https://api.example.com` | No | ホストが異なる |
 
 ---
 
@@ -136,12 +136,12 @@ CORSは、Same-Origin Policyを**選択的に緩和**するための仕組みで
 
 ## セキュリティリスク
 
-### ❌ 危険な設定例
+### 危険な設定例
 
 #### 1. ワイルドカード `*` と認証情報の併用
 
 ```go
-// ❌ これはエラーになる（ブラウザが拒否）
+// これはエラーになる（ブラウザが拒否）
 w.Header().Set("Access-Control-Allow-Origin", "*")
 w.Header().Set("Access-Control-Allow-Credentials", "true")
 ```
@@ -151,7 +151,7 @@ w.Header().Set("Access-Control-Allow-Credentials", "true")
 #### 2. リクエストのOriginをそのまま反映
 
 ```go
-// ❌ 非常に危険！
+// 非常に危険！
 origin := r.Header.Get("Origin")
 w.Header().Set("Access-Control-Allow-Origin", origin)
 w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -162,7 +162,7 @@ w.Header().Set("Access-Control-Allow-Credentials", "true")
 #### 3. 正規表現の不適切な使用
 
 ```go
-// ❌ 危険！
+// 危険！
 origin := r.Header.Get("Origin")
 if strings.Contains(origin, "example.com") {
     w.Header().Set("Access-Control-Allow-Origin", origin)
@@ -171,7 +171,7 @@ if strings.Contains(origin, "example.com") {
 
 **問題点:** `evil-example.com` や `example.com.evil.com` も許可されてしまう。
 
-### ✅ 安全な設定
+### 安全な設定
 
 #### ホワイトリスト方式
 

@@ -58,7 +58,41 @@ services:
     networks:
       - web-security-network
 
-  # フロントエンド（CORS テスト用）
+  # JWT実装（Redis） - ポート8090
+  jwt-full:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: web-security-jwt-full
+    working_dir: /app/examples/jwt/8090-full
+    ports:
+      - "8090:8090"
+    volumes:
+      - .:/app
+      - go-modules:/go/pkg/mod
+    environment:
+      - ENV=development
+      - PORT=8090
+      - REDIS_URL=redis:6379
+    command: sh -c "cd /app/examples/jwt/8090-full && go run main.go"
+    depends_on:
+      - redis
+    networks:
+      - web-security-network
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: web-security-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --requirepass ""
+    networks:
+      - web-security-network
+
+  # フロントエンド（テスト用）
   frontend:
     image: nginx:alpine
     container_name: web-security-frontend
@@ -72,9 +106,12 @@ services:
       - cors-standard
       - cors-vulnerable
       - cors-secure
+      - jwt-full
 
 volumes:
   go-modules:
+  redis-data:
+
 
 networks:
   web-security-network:

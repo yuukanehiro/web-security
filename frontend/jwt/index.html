@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JWT Authentication Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+        }
+
+        h2 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        textarea {
+            font-family: 'Courier New', monospace;
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            background: #667eea;
+            color: white;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button.secondary {
+            background: #718096;
+        }
+
+        button.secondary:hover {
+            background: #4a5568;
+        }
+
+        button.danger {
+            background: #f56565;
+        }
+
+        button.danger:hover {
+            background: #e53e3e;
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .result.success {
+            background: #f0fff4;
+            border: 1px solid #48bb78;
+            color: #22543d;
+        }
+
+        .result.error {
+            background: #fff5f5;
+            border: 1px solid #f56565;
+            color: #742a2a;
+        }
+
+        .info-box {
+            background: #ebf8ff;
+            border-left: 4px solid #4299e1;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .token-display {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            word-break: break-all;
+        }
+
+        .token-display h3 {
+            color: #4a5568;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+
+        .token-display code {
+            display: block;
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .status-badge.logged-in {
+            background: #f0fff4;
+            color: #22543d;
+        }
+
+        .status-badge.logged-out {
+            background: #fff5f5;
+            color: #742a2a;
+        }
+
+        .jwt-viewer {
+            background: #f7fafc;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+
+        .jwt-section {
+            margin-bottom: 20px;
+        }
+
+        .jwt-section h4 {
+            color: #4a5568;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .jwt-header {
+            background: #fed7d7;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #f56565;
+        }
+
+        .jwt-payload {
+            background: #d6bcfa;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #9f7aea;
+        }
+
+        .jwt-signature {
+            background: #bee3f8;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #4299e1;
+        }
+
+        .jwt-raw {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 12px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            word-break: break-all;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+
+        .jwt-json {
+            background: white;
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+
+        .verify-section {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f0fff4;
+            border: 2px solid #48bb78;
+            border-radius: 6px;
+        }
+
+        .verify-section.invalid {
+            background: #fff5f5;
+            border-color: #f56565;
+        }
+
+        .verify-section h4 {
+            margin-bottom: 10px;
+        }
+
+        .verify-input {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .verify-input input {
+            flex: 1;
+        }
+
+        .verify-result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .verify-result.valid {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .verify-result.invalid {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 JWT Authentication Test</h1>
+        <p class="subtitle">JSON Web Token の認証フロー（フル機能版）を体験</p>
+
+        <div class="info-box">
+            <strong>💡 このページについて:</strong><br>
+            JWT認証の完全な実装を体験できます。アクセストークン、リフレッシュトークン、RBAC（ロールベースアクセス制御）を学べます。<br>
+            <strong>テストユーザー:</strong> user1/password1 (user), user2/password2 (user), admin/admin123 (admin)<br>
+            <strong>機能:</strong> Access Token (15分) + Refresh Token (7日) + RBAC
+        </div>
+
+        <!-- ステータス表示 -->
+        <div class="section">
+            <h2>認証状態 <span class="status-badge logged-out" id="auth-status">ログアウト中</span></h2>
+            <div id="token-info"></div>
+        </div>
+
+        <!-- ログイン -->
+        <div class="section">
+            <h2>1. ログイン（JWTトークン取得）</h2>
+            <div class="form-group">
+                <label for="username">ユーザー名:</label>
+                <input type="text" id="username" value="user1" placeholder="user1">
+            </div>
+            <div class="form-group">
+                <label for="password">パスワード:</label>
+                <input type="password" id="password" value="password1" placeholder="password1">
+            </div>
+            <button onclick="login()">ログイン</button>
+            <button class="danger" onclick="logout()">ログアウト</button>
+            <div id="login-result"></div>
+        </div>
+
+        <!-- トークン検証 -->
+        <div class="section">
+            <h2>2. トークン検証</h2>
+            <p>現在保存されているJWTトークンが有効かチェックします</p>
+            <button class="secondary" onclick="validateToken()">トークンを検証</button>
+            <div id="validate-result"></div>
+        </div>
+
+        <!-- リフレッシュトークン -->
+        <div class="section">
+            <h2>3. リフレッシュトークンで更新</h2>
+            <p>アクセストークンの有効期限が切れた際に、リフレッシュトークンで新しいアクセストークンを取得します</p>
+            <button class="secondary" onclick="refreshAccessToken()">アクセストークンを更新</button>
+            <div id="refresh-result"></div>
+        </div>
+
+        <!-- 保護されたリソースへのアクセス -->
+        <div class="section">
+            <h2>4. 保護されたリソースへアクセス</h2>
+            <p>JWT認証が必要なエンドポイントにアクセスします</p>
+            <button onclick="accessProtected()">保護されたデータを取得</button>
+            <button onclick="getMe()">ユーザー情報を取得</button>
+            <div id="protected-result"></div>
+        </div>
+
+        <!-- 管理者専用エンドポイント -->
+        <div class="section">
+            <h2>5. 管理者専用機能（RBAC）</h2>
+            <p>adminロールのユーザーのみアクセス可能なエンドポイント</p>
+            <button onclick="accessAdmin()">管理者パネルへアクセス</button>
+            <button onclick="listUsers()">ユーザー一覧を取得</button>
+            <div id="admin-result"></div>
+        </div>
+
+        <!-- トークンなしでアクセス -->
+        <div class="section">
+            <h2>6. 認証なしでアクセス（エラーテスト）</h2>
+            <p>JWTトークンなしで保護されたリソースにアクセスするとどうなるか確認</p>
+            <button class="danger" onclick="accessWithoutToken()">トークンなしでアクセス</button>
+            <div id="no-token-result"></div>
+        </div>
+
+        <!-- カスタムトークンテスト -->
+        <div class="section">
+            <h2>7. カスタムトークンでテスト</h2>
+            <div class="form-group">
+                <label for="custom-token">カスタムJWTトークン:</label>
+                <textarea id="custom-token" placeholder="Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."></textarea>
+            </div>
+            <button onclick="testCustomToken()">カスタムトークンでアクセス</button>
+            <div id="custom-result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8090';
+
+        // Base64URL デコード
+        function base64UrlDecode(str) {
+            // Base64URL を Base64 に変換
+            let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+            // パディングを追加
+            while (base64.length % 4) {
+                base64 += '=';
+            }
+            // デコード
+            try {
+                return JSON.parse(decodeURIComponent(escape(atob(base64))));
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // JWT をパース
+        function parseJWT(token) {
+            const parts = token.split('.');
+            if (parts.length !== 3) {
+                return null;
+            }
+
+            return {
+                header: base64UrlDecode(parts[0]),
+                payload: base64UrlDecode(parts[1]),
+                signature: parts[2],
+                raw: {
+                    header: parts[0],
+                    payload: parts[1],
+                    signature: parts[2]
+                }
+            };
+        }
+
+        // JWT を表示（jwt.io スタイル）
+        function displayJWT(token, containerId) {
+            const container = document.getElementById(containerId);
+
+            if (!token) {
+                container.innerHTML = '<p style="color: #718096;">トークンがありません</p>';
+                return;
+            }
+
+            const parsed = parseJWT(token);
+
+            // JWT形式でない場合（リフレッシュトークンなど）
+            if (!parsed) {
+                container.innerHTML = `
+                    <div class="jwt-viewer">
+                        <div class="jwt-section">
+                            <h4>🔑 Random Token (Not JWT Format)</h4>
+                            <div style="background: #bee3f8; padding: 15px; border-radius: 6px; border-left: 4px solid #4299e1;">
+                                <div class="jwt-raw">${token}</div>
+                                <p style="margin-top: 10px; color: #2c5282; font-size: 12px;">
+                                    このトークンはJWT形式ではなく、ランダムに生成された文字列です。<br>
+                                    サーバー側のメモリストアで管理され、検証はサーバー側で行われます。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            // JWT形式の場合
+            container.innerHTML = `
+                <div class="jwt-viewer">
+                    <div class="jwt-section">
+                        <h4>🔴 Header (Algorithm & Token Type)</h4>
+                        <div class="jwt-header">
+                            <div class="jwt-raw">${parsed.raw.header}</div>
+                            <div class="jwt-json">${JSON.stringify(parsed.header, null, 2)}</div>
+                        </div>
+                    </div>
+
+                    <div class="jwt-section">
+                        <h4>🟣 Payload (Data/Claims)</h4>
+                        <div class="jwt-payload">
+                            <div class="jwt-raw">${parsed.raw.payload}</div>
+                            <div class="jwt-json">${JSON.stringify(parsed.payload, null, 2)}</div>
+                        </div>
+                    </div>
+
+                    <div class="jwt-section">
+                        <h4>🔵 Signature</h4>
+                        <div class="jwt-signature">
+                            <div class="jwt-raw">${parsed.raw.signature}</div>
+                        </div>
+                    </div>
+
+                    <div class="verify-section" id="verify-${containerId}">
+                        <h4>🔐 Signature Verification</h4>
+                        <div class="verify-input">
+                            <input type="text" id="secret-${containerId}" placeholder="your-secret-key-change-this-in-production" value="your-secret-key-change-this-in-production">
+                            <button onclick="verifyJWT('${containerId}')" class="secondary">検証</button>
+                        </div>
+                        <div id="verify-result-${containerId}"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // JWT 署名を検証
+        async function verifyJWT(containerId) {
+            const token = containerId.includes('access')
+                ? localStorage.getItem('jwt_access_token')
+                : localStorage.getItem('jwt_refresh_token');
+
+            if (!token) return;
+
+            const secret = document.getElementById(`secret-${containerId}`).value;
+            const resultDiv = document.getElementById(`verify-result-${containerId}`);
+
+            if (!secret) {
+                resultDiv.className = 'verify-result invalid';
+                resultDiv.textContent = '❌ シークレットキーを入力してください';
+                return;
+            }
+
+            try {
+                const parts = token.split('.');
+                const header = parts[0];
+                const payload = parts[1];
+                const signature = parts[2];
+
+                // HMAC-SHA256 で署名を計算
+                const encoder = new TextEncoder();
+                const data = encoder.encode(`${header}.${payload}`);
+                const keyData = encoder.encode(secret);
+
+                const cryptoKey = await crypto.subtle.importKey(
+                    'raw',
+                    keyData,
+                    { name: 'HMAC', hash: 'SHA-256' },
+                    false,
+                    ['sign']
+                );
+
+                const signatureBuffer = await crypto.subtle.sign('HMAC', cryptoKey, data);
+
+                // Base64URL エンコード
+                const signatureArray = new Uint8Array(signatureBuffer);
+                const signatureBase64 = btoa(String.fromCharCode(...signatureArray))
+                    .replace(/\+/g, '-')
+                    .replace(/\//g, '_')
+                    .replace(/=/g, '');
+
+                if (signatureBase64 === signature) {
+                    resultDiv.className = 'verify-result valid';
+                    resultDiv.textContent = '✅ 署名が有効です (Signature Verified)';
+                    document.getElementById(`verify-${containerId}`).className = 'verify-section';
+                } else {
+                    resultDiv.className = 'verify-result invalid';
+                    resultDiv.textContent = '❌ 署名が無効です (Invalid Signature)';
+                    document.getElementById(`verify-${containerId}`).className = 'verify-section invalid';
+                }
+            } catch (error) {
+                resultDiv.className = 'verify-result invalid';
+                resultDiv.textContent = `❌ 検証エラー: ${error.message}`;
+                document.getElementById(`verify-${containerId}`).className = 'verify-section invalid';
+            }
+        }
+
+        // ログイン
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('login-result');
+
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch(`${API_URL}/api/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Login failed: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // アクセストークンとリフレッシュトークンを保存
+                localStorage.setItem('jwt_access_token', data.access_token);
+                localStorage.setItem('jwt_refresh_token', data.refresh_token);
+                localStorage.setItem('jwt_access_expires_at', data.access_token_expires_at);
+                localStorage.setItem('jwt_refresh_expires_at', data.refresh_token_expires_at);
+                localStorage.setItem('jwt_username', data.username);
+                localStorage.setItem('jwt_role', data.role);
+
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <strong>✅ ログイン成功!</strong><br><br>
+                    ユーザー名: ${data.username}<br>
+                    ロール: ${data.role}<br><br>
+                    アクセストークン有効期限: ${new Date(data.access_token_expires_at * 1000).toLocaleString()}<br>
+                    リフレッシュトークン有効期限: ${new Date(data.refresh_token_expires_at * 1000).toLocaleString()}<br><br>
+                    トークンは下の「認証状態」セクションで詳細表示されます。
+                `;
+
+                updateAuthStatus();
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        // ログアウト
+        async function logout() {
+            const refreshToken = localStorage.getItem('jwt_refresh_token');
+            const accessToken = localStorage.getItem('jwt_access_token');
+
+            // リフレッシュトークンを無効化 & アクセストークンをブラックリストに追加
+            if (refreshToken) {
+                try {
+                    await fetch(`${API_URL}/api/logout`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            refresh_token: refreshToken,
+                            access_token: accessToken // アクセストークンもサーバーに送信
+                        })
+                    });
+                } catch (error) {
+                    console.error('Logout API error:', error);
+                }
+            }
+
+            // ローカルストレージをクリア
+            localStorage.removeItem('jwt_access_token');
+            localStorage.removeItem('jwt_refresh_token');
+            localStorage.removeItem('jwt_access_expires_at');
+            localStorage.removeItem('jwt_refresh_expires_at');
+            localStorage.removeItem('jwt_username');
+            localStorage.removeItem('jwt_role');
+
+            document.getElementById('login-result').className = 'result success';
+            document.getElementById('login-result').textContent = 'ログアウトしました（トークンをブラックリストに追加）';
+
+            updateAuthStatus();
+        }
+
+        // トークン検証
+        async function validateToken() {
+            const resultDiv = document.getElementById('validate-result');
+            const token = localStorage.getItem('jwt_access_token');
+
+            if (!token) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ トークンがありません。先にログインしてください。';
+                return;
+            }
+
+            resultDiv.innerHTML = '検証中...';
+
+            try {
+                const response = await fetch(`${API_URL}/api/validate`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ トークンは有効です\n\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ トークンが無効です\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        // リフレッシュトークンでアクセストークンを更新
+        async function refreshAccessToken() {
+            const resultDiv = document.getElementById('refresh-result');
+            const refreshToken = localStorage.getItem('jwt_refresh_token');
+
+            if (!refreshToken) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ リフレッシュトークンがありません。先にログインしてください。';
+                return;
+            }
+
+            resultDiv.innerHTML = '更新中...';
+
+            try {
+                const response = await fetch(`${API_URL}/api/refresh`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ refresh_token: refreshToken })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Refresh failed: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // 新しいアクセストークンを保存
+                localStorage.setItem('jwt_access_token', data.access_token);
+                localStorage.setItem('jwt_access_expires_at', data.access_token_expires_at);
+
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    <strong>✅ アクセストークン更新成功!</strong><br><br>
+                    ユーザー名: ${data.username}<br>
+                    ロール: ${data.role}<br>
+                    有効期限: ${new Date(data.access_token_expires_at * 1000).toLocaleString()}<br><br>
+                    新しいトークンは「認証状態」セクションで詳細表示されます。
+                `;
+
+                updateAuthStatus();
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        // 保護されたリソースへアクセス
+        async function accessProtected() {
+            const resultDiv = document.getElementById('protected-result');
+            const token = localStorage.getItem('jwt_access_token');
+
+            if (!token) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ トークンがありません。先にログインしてください。';
+                return;
+            }
+
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch(`${API_URL}/api/protected`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ アクセス成功!\n\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ アクセス拒否\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        // ユーザー情報取得
+        async function getMe() {
+            const resultDiv = document.getElementById('protected-result');
+            const token = localStorage.getItem('jwt_access_token');
+
+            if (!token) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ トークンがありません。先にログインしてください。';
+                return;
+            }
+
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch(`${API_URL}/api/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ ユーザー情報取得成功!\n\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ 取得失敗\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        // 管理者パネルへアクセス
+        async function accessAdmin() {
+            const resultDiv = document.getElementById('admin-result');
+            const token = localStorage.getItem('jwt_access_token');
+
+            if (!token) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ トークンがありません。先にログインしてください。';
+                return;
+            }
+
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch(`${API_URL}/api/admin`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ 管理者パネルアクセス成功!\n\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ アクセス拒否 (管理者権限が必要です)\n\nStatus: ${response.status}\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        // ユーザー一覧取得
+        async function listUsers() {
+            const resultDiv = document.getElementById('admin-result');
+            const token = localStorage.getItem('jwt_access_token');
+
+            if (!token) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ トークンがありません。先にログインしてください。';
+                return;
+            }
+
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch(`${API_URL}/api/admin/users`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ ユーザー一覧取得成功!\n\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ アクセス拒否 (管理者権限が必要です)\n\nStatus: ${response.status}\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        // トークンなしでアクセス
+        async function accessWithoutToken() {
+            const resultDiv = document.getElementById('no-token-result');
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch(`${API_URL}/api/protected`);
+                const text = await response.text();
+
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ 期待通りアクセス拒否されました\n\nStatus: ${response.status}\nResponse: ${text}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        // カスタムトークンでテスト
+        async function testCustomToken() {
+            const resultDiv = document.getElementById('custom-result');
+            const customToken = document.getElementById('custom-token').value.trim();
+
+            if (!customToken) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ トークンを入力してください';
+                return;
+            }
+
+            resultDiv.innerHTML = '送信中...';
+
+            // Bearerプレフィックスを削除
+            const token = customToken.replace(/^Bearer\s+/i, '');
+
+            try {
+                const response = await fetch(`${API_URL}/api/protected`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `✅ アクセス成功!\n\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `❌ アクセス拒否\n\nStatus: ${response.status}\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+            }
+        }
+
+        // 認証状態の更新
+        function updateAuthStatus() {
+            const accessToken = localStorage.getItem('jwt_access_token');
+            const refreshToken = localStorage.getItem('jwt_refresh_token');
+            const username = localStorage.getItem('jwt_username');
+            const role = localStorage.getItem('jwt_role');
+            const accessExpiresAt = localStorage.getItem('jwt_access_expires_at');
+            const refreshExpiresAt = localStorage.getItem('jwt_refresh_expires_at');
+            const statusBadge = document.getElementById('auth-status');
+            const tokenInfo = document.getElementById('token-info');
+
+            if (accessToken && username) {
+                statusBadge.className = 'status-badge logged-in';
+                statusBadge.textContent = `ログイン中: ${username} (${role})`;
+
+                const accessExpireDate = new Date(accessExpiresAt * 1000);
+                const refreshExpireDate = new Date(refreshExpiresAt * 1000);
+                const now = new Date();
+                const isAccessExpired = accessExpireDate < now;
+                const isRefreshExpired = refreshExpireDate < now;
+
+                tokenInfo.innerHTML = `
+                    <div class="token-display">
+                        <h3>アクセストークン
+                            <span style="color: ${isAccessExpired ? '#e53e3e' : '#22543d'};">
+                                ${isAccessExpired ? '❌ 期限切れ' : '✅ 有効'}: ${accessExpireDate.toLocaleString()}
+                            </span>
+                        </h3>
+                        <div id="access-token-viewer"></div>
+                    </div>
+                    <div class="token-display">
+                        <h3>リフレッシュトークン
+                            <span style="color: ${isRefreshExpired ? '#e53e3e' : '#22543d'};">
+                                ${isRefreshExpired ? '❌ 期限切れ' : '✅ 有効'}: ${refreshExpireDate.toLocaleString()}
+                            </span>
+                        </h3>
+                        <div id="refresh-token-viewer"></div>
+                    </div>
+                `;
+
+                // JWT を詳細表示
+                displayJWT(accessToken, 'access-token-viewer');
+                displayJWT(refreshToken, 'refresh-token-viewer');
+            } else {
+                statusBadge.className = 'status-badge logged-out';
+                statusBadge.textContent = 'ログアウト中';
+                tokenInfo.innerHTML = '';
+            }
+        }
+
+        // ページ読み込み時に認証状態を更新
+        updateAuthStatus();
+
+        console.log('🔐 JWT Authentication Test Tool Loaded');
+        console.log('API URL:', API_URL);
+    </script>
+</body>
+</html>
