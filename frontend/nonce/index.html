@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nonce-based MITM Protection Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+        }
+
+        h2 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            background: #667eea;
+            color: white;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button.secondary {
+            background: #718096;
+        }
+
+        button.secondary:hover {
+            background: #4a5568;
+        }
+
+        button.danger {
+            background: #f56565;
+        }
+
+        button.danger:hover {
+            background: #e53e3e;
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .result.success {
+            background: #f0fff4;
+            border: 1px solid #48bb78;
+            color: #22543d;
+        }
+
+        .result.error {
+            background: #fff5f5;
+            border: 1px solid #f56565;
+            color: #742a2a;
+        }
+
+        .info-box {
+            background: #ebf8ff;
+            border-left: 4px solid #4299e1;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .warning-box {
+            background: #fffaf0;
+            border-left: 4px solid #ed8936;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .nonce-display {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            word-break: break-all;
+        }
+
+        .nonce-display h3 {
+            color: #4a5568;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+
+        .nonce-display code {
+            display: block;
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        .status-badge.valid {
+            background: #f0fff4;
+            color: #22543d;
+        }
+
+        .status-badge.expired {
+            background: #fff5f5;
+            color: #742a2a;
+        }
+
+        .status-badge.logged-in {
+            background: #f0fff4;
+            color: #22543d;
+        }
+
+        .status-badge.logged-out {
+            background: #fff5f5;
+            color: #742a2a;
+        }
+
+        .checkbox-group {
+            margin: 10px 0;
+        }
+
+        .checkbox-group label {
+            display: inline;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Nonce-based MITM Protection Test (JWT Auth Required)</h1>
+        <p class="subtitle">リプレイアタック防止のためのNonce（使い捨てトークン）+ JWT認証</p>
+
+        <div class="info-box">
+            <strong>このページについて:</strong><br>
+            Nonce（Number used ONCE）は、一度だけ使用可能なトークンです。<br>
+            <strong>セキュリティ強化:</strong> Nonce取得にはJWT認証が必須で、Nonceはユーザーごとに管理されます。<br>
+            攻撃者が /api/nonce を叩いても、正規ユーザーのJWTトークンがないとNonceを取得できません。<br>
+            <strong>仕組み:</strong> 各Nonceは5分間有効で、使用後は即座に無効化されます。
+        </div>
+
+        <!-- JWT認証状態 -->
+        <div class="section">
+            <h2>JWT認証状態 <span class="status-badge logged-out" id="auth-status">ログアウト中</span></h2>
+            <div id="auth-info" style="margin-top: 10px; color: #666; font-size: 14px;">
+                JWTログインが必要です。先にJWTサーバー (http://localhost:8090) でログインしてください。
+            </div>
+        </div>
+
+        <!-- JWT ログイン -->
+        <div class="section">
+            <h2>0. JWT ログイン</h2>
+            <p>Nonce取得にはJWT認証が必須です。JWTサーバー (Port 8090) でログインしてください。</p>
+            <div class="form-group">
+                <label for="username">ユーザー名:</label>
+                <input type="text" id="username" value="user1" placeholder="user1">
+            </div>
+            <div class="form-group">
+                <label for="password">パスワード:</label>
+                <input type="password" id="password" value="password1" placeholder="password1">
+            </div>
+            <button onclick="login()">JWTログイン</button>
+            <button class="danger" onclick="logout()">ログアウト</button>
+            <div id="login-result"></div>
+        </div>
+
+        <!-- Nonce状態表示 -->
+        <div class="section">
+            <h2>Nonce状態 <span class="status-badge expired" id="nonce-status">未取得</span></h2>
+            <div id="nonce-info"></div>
+        </div>
+
+        <!-- Nonce取得 -->
+        <div class="section">
+            <h2>1. Nonce取得（JWT認証必須）</h2>
+            <p>重要な操作を実行する前に、新しいNonceを取得してください。JWTトークンが必要です。</p>
+            <button onclick="getNonce()">新しいNonceを取得</button>
+            <button class="secondary" onclick="clearNonce()">Nonceをクリア</button>
+            <div id="nonce-result"></div>
+        </div>
+
+        <!-- 送金処理 -->
+        <div class="section">
+            <h2>2. 送金処理（JWT + Nonce必須）</h2>
+            <div class="form-group">
+                <label for="transfer-to">送金先:</label>
+                <input type="text" id="transfer-to" value="user@example.com" placeholder="user@example.com">
+            </div>
+            <div class="form-group">
+                <label for="transfer-amount">金額:</label>
+                <input type="number" id="transfer-amount" value="1000" placeholder="1000">
+            </div>
+            <button onclick="transfer()">送金を実行</button>
+            <button class="danger" onclick="replayTransfer()">リプレイアタック（同じNonceで再送）</button>
+            <div id="transfer-result"></div>
+        </div>
+
+        <!-- アカウント削除 -->
+        <div class="section">
+            <h2>3. アカウント削除（JWT + Nonce必須）</h2>
+            <div class="form-group">
+                <label for="delete-username">ユーザー名:</label>
+                <input type="text" id="delete-username" value="testuser" placeholder="testuser">
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="delete-confirm">
+                <label for="delete-confirm">アカウント削除を確認しました</label>
+            </div>
+            <button class="danger" onclick="deleteAccount()">アカウントを削除</button>
+            <div id="delete-result"></div>
+        </div>
+
+        <!-- パスワード変更 -->
+        <div class="section">
+            <h2>4. パスワード変更（JWT + Nonce必須）</h2>
+            <div class="form-group">
+                <label for="old-password">現在のパスワード:</label>
+                <input type="password" id="old-password" placeholder="現在のパスワード">
+            </div>
+            <div class="form-group">
+                <label for="new-password">新しいパスワード:</label>
+                <input type="password" id="new-password" placeholder="新しいパスワード">
+            </div>
+            <button onclick="changePassword()">パスワードを変更</button>
+            <div id="password-result"></div>
+        </div>
+
+        <!-- Nonceなしでアクセス -->
+        <div class="section">
+            <h2>5. Nonceなしでアクセス（エラーテスト）</h2>
+            <div class="warning-box">
+                <strong>テスト:</strong> Nonceを含めずにリクエストを送信するとどうなるか確認
+            </div>
+            <button class="danger" onclick="transferWithoutNonce()">Nonceなしで送金</button>
+            <div id="no-nonce-result"></div>
+        </div>
+
+        <!-- JWT認証なしでNonce取得 -->
+        <div class="section">
+            <h2>6. JWT認証なしでNonce取得（エラーテスト）</h2>
+            <div class="warning-box">
+                <strong>テスト:</strong> JWTトークンなしでNonceを取得しようとするとどうなるか確認
+            </div>
+            <button class="danger" onclick="getNonceWithoutAuth()">認証なしでNonce取得</button>
+            <div id="no-auth-result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8093';
+        const JWT_API_URL = 'http://localhost:8090';
+        let currentNonce = null;
+        let nonceExpiresAt = null;
+
+        // JWT ログイン
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultDiv = document.getElementById('login-result');
+
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch(`${JWT_API_URL}/api/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Login failed: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // JWTトークンを保存
+                localStorage.setItem('jwt_access_token', data.access_token);
+                localStorage.setItem('jwt_username', data.username);
+                localStorage.setItem('jwt_role', data.role);
+
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    JWTログイン成功!
+
+                    ユーザー名: ${data.username}
+                    ロール: ${data.role}
+
+                    これでNonceを取得できます。
+                `;
+
+                updateAuthStatus();
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `エラー:\n${error.message}`;
+            }
+        }
+
+        // ログアウト
+        function logout() {
+            localStorage.removeItem('jwt_access_token');
+            localStorage.removeItem('jwt_username');
+            localStorage.removeItem('jwt_role');
+
+            document.getElementById('login-result').className = 'result success';
+            document.getElementById('login-result').textContent = 'ログアウトしました';
+
+            clearNonce();
+            updateAuthStatus();
+        }
+
+        // 認証状態の更新
+        function updateAuthStatus() {
+            const token = localStorage.getItem('jwt_access_token');
+            const username = localStorage.getItem('jwt_username');
+            const role = localStorage.getItem('jwt_role');
+            const statusBadge = document.getElementById('auth-status');
+            const authInfo = document.getElementById('auth-info');
+
+            if (token && username) {
+                statusBadge.className = 'status-badge logged-in';
+                statusBadge.textContent = `ログイン中: ${username} (${role})`;
+                authInfo.innerHTML = `
+                    <strong>JWT認証完了</strong><br>
+                    ユーザー: ${username} / ロール: ${role}<br>
+                    これでNonceを取得できます。
+                `;
+            } else {
+                statusBadge.className = 'status-badge logged-out';
+                statusBadge.textContent = 'ログアウト中';
+                authInfo.innerHTML = 'JWTログインが必要です。先にJWTサーバー (http://localhost:8090) でログインしてください。';
+            }
+        }
+
+        // Nonce取得（JWT認証必須）
+        async function getNonce() {
+            const resultDiv = document.getElementById('nonce-result');
+            const token = localStorage.getItem('jwt_access_token');
+
+            if (!token) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'エラー: JWTトークンがありません。先にログインしてください。';
+                return;
+            }
+
+            resultDiv.innerHTML = '取得中...';
+
+            try {
+                const response = await fetch(`${API_URL}/api/nonce`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    currentNonce = data.nonce;
+                    nonceExpiresAt = Date.now() + (data.expires_in * 1000);
+
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `Nonce取得成功!
+
+ユーザー: ${data.username}
+有効期限: ${data.expires_in}秒（${new Date(nonceExpiresAt).toLocaleTimeString()}まで）`;
+
+                    updateNonceStatus();
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `エラー:\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `エラー:\n${error.message}`;
+            }
+        }
+
+        // Nonceクリア
+        function clearNonce() {
+            currentNonce = null;
+            nonceExpiresAt = null;
+            document.getElementById('nonce-result').textContent = '';
+            updateNonceStatus();
+        }
+
+        // Nonce状態を更新
+        function updateNonceStatus() {
+            const statusBadge = document.getElementById('nonce-status');
+            const nonceInfo = document.getElementById('nonce-info');
+
+            if (!currentNonce) {
+                statusBadge.className = 'status-badge expired';
+                statusBadge.textContent = '未取得';
+                nonceInfo.innerHTML = '';
+                return;
+            }
+
+            const now = Date.now();
+            const isExpired = now > nonceExpiresAt;
+
+            if (isExpired) {
+                statusBadge.className = 'status-badge expired';
+                statusBadge.textContent = '期限切れ';
+            } else {
+                statusBadge.className = 'status-badge valid';
+                const remaining = Math.floor((nonceExpiresAt - now) / 1000);
+                statusBadge.textContent = `有効（残り${remaining}秒）`;
+            }
+
+            nonceInfo.innerHTML = `
+                <div class="nonce-display">
+                    <h3>現在のNonce:</h3>
+                    <code>${currentNonce}</code>
+                    <p style="margin-top: 10px; color: ${isExpired ? '#e53e3e' : '#22543d'};">
+                        ${isExpired ? '期限切れ' : '有効'}: ${new Date(nonceExpiresAt).toLocaleString()}
+                    </p>
+                </div>
+            `;
+        }
+
+        // Nonce + JWT付きリクエスト
+        async function requestWithNonce(url, body) {
+            const token = localStorage.getItem('jwt_access_token');
+
+            if (!token) {
+                throw new Error('JWTトークンがありません。先にログインしてください。');
+            }
+
+            if (!currentNonce) {
+                throw new Error('Nonceが取得されていません。先にNonceを取得してください。');
+            }
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'X-Nonce': currentNonce
+                },
+                body: JSON.stringify(body)
+            });
+
+            return response;
+        }
+
+        // 送金処理
+        async function transfer() {
+            const resultDiv = document.getElementById('transfer-result');
+            const to = document.getElementById('transfer-to').value;
+            const amount = parseFloat(document.getElementById('transfer-amount').value);
+
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await requestWithNonce(`${API_URL}/api/transfer`, {
+                    to: to,
+                    amount: amount
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `送金成功!\n\n${JSON.stringify(data, null, 2)}`;
+
+                    // 使用済みNonceをクリア
+                    clearNonce();
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `送金失敗\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `エラー:\n${error.message}`;
+            }
+        }
+
+        // リプレイアタック（同じNonceで再送）
+        async function replayTransfer() {
+            const resultDiv = document.getElementById('transfer-result');
+            const to = document.getElementById('transfer-to').value;
+            const amount = parseFloat(document.getElementById('transfer-amount').value);
+            const token = localStorage.getItem('jwt_access_token');
+
+            if (!token) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'エラー: JWTトークンがありません';
+                return;
+            }
+
+            if (!currentNonce) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'エラー: Nonceが取得されていません';
+                return;
+            }
+
+            resultDiv.innerHTML = 'リプレイアタック実行中...';
+
+            try {
+                // 同じNonceで再度リクエスト
+                const response = await fetch(`${API_URL}/api/transfer`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                        'X-Nonce': currentNonce
+                    },
+                    body: JSON.stringify({
+                        to: to,
+                        amount: amount
+                    })
+                });
+
+                const data = await response.json();
+
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `リプレイアタック結果（期待: 拒否）\n\nStatus: ${response.status}\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `エラー:\n${error.message}`;
+            }
+        }
+
+        // アカウント削除
+        async function deleteAccount() {
+            const resultDiv = document.getElementById('delete-result');
+            const username = document.getElementById('delete-username').value;
+            const confirm = document.getElementById('delete-confirm').checked;
+
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await requestWithNonce(`${API_URL}/api/delete-account`, {
+                    username: username,
+                    confirm: confirm
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `アカウント削除成功!\n\n${JSON.stringify(data, null, 2)}`;
+                    clearNonce();
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `削除失敗\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `エラー:\n${error.message}`;
+            }
+        }
+
+        // パスワード変更
+        async function changePassword() {
+            const resultDiv = document.getElementById('password-result');
+            const oldPassword = document.getElementById('old-password').value;
+            const newPassword = document.getElementById('new-password').value;
+
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await requestWithNonce(`${API_URL}/api/change-password`, {
+                    old_password: oldPassword,
+                    new_password: newPassword
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `パスワード変更成功!\n\n${JSON.stringify(data, null, 2)}`;
+                    clearNonce();
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `変更失敗\n\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `エラー:\n${error.message}`;
+            }
+        }
+
+        // Nonceなしでアクセス
+        async function transferWithoutNonce() {
+            const resultDiv = document.getElementById('no-nonce-result');
+            const token = localStorage.getItem('jwt_access_token');
+
+            if (!token) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'エラー: JWTトークンがありません';
+                return;
+            }
+
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch(`${API_URL}/api/transfer`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                        // X-Nonceヘッダーなし
+                    },
+                    body: JSON.stringify({
+                        to: 'test@example.com',
+                        amount: 100
+                    })
+                });
+
+                const data = await response.json();
+
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `期待通り拒否されました\n\nStatus: ${response.status}\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `エラー:\n${error.message}`;
+            }
+        }
+
+        // JWT認証なしでNonce取得
+        async function getNonceWithoutAuth() {
+            const resultDiv = document.getElementById('no-auth-result');
+            resultDiv.innerHTML = '送信中...';
+
+            try {
+                const response = await fetch(`${API_URL}/api/nonce`);
+                const data = await response.json();
+
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `期待通り拒否されました\n\nStatus: ${response.status}\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `エラー:\n${error.message}`;
+            }
+        }
+
+        // Nonce状態を定期的に更新（1秒ごと）
+        setInterval(updateNonceStatus, 1000);
+
+        // ページ読み込み時に状態を更新
+        updateAuthStatus();
+        updateNonceStatus();
+
+        console.log('Nonce-based MITM Protection Test Tool Loaded (JWT Auth Required)');
+        console.log('API URL:', API_URL);
+        console.log('JWT API URL:', JWT_API_URL);
+    </script>
+</body>
+</html>

@@ -29,12 +29,22 @@ Webセキュリティの基礎を学ぶための実践的なGoプロジェクト
   - トークンブラックリスト（Redis TTL自動削除）
   - 標準JWTクレーム完全対応（iss, sub, aud, exp, iat, nbf, jti）
 
+### Nonce（MITM対策 + JWT認証）
+
+- **Nonce Server** (Port 8093): JWT認証必須のNonce実装
+  - リプレイアタック防止
+  - JWT認証でNonce取得（攻撃者が直接Nonceを取得できない）
+  - Nonceをユーザーごとに管理（Redis）
+  - 5分TTL自動削除
+  - 一度だけ使用可能（使用後即削除）
+
 ### フロントエンド
 
 - テスト用Webインターフェース（Port 3000）
-- CORS、JWT機能の対話的なテスト
+- CORS、JWT、Nonce機能の対話的なテスト
 - JWT詳細表示（jwt.io風のUI）
 - 署名検証機能（Web Crypto API）
+- Nonceリプレイアタックのデモ
 
 ## 技術スタック
 
@@ -86,6 +96,7 @@ docker-compose logs -f
 | CORS脆弱 | http://localhost:8081 | 脆弱性デモ |
 | CORSセキュア | http://localhost:8082 | セキュア実装 |
 | JWT Full (Redis) | http://localhost:8090 | JWT + Redis |
+| Nonce (MITM対策) | http://localhost:8093 | Nonce + JWT |
 | Redis | localhost:6379 | トークンストレージ |
 
 ## 使用方法
@@ -117,7 +128,33 @@ open http://localhost:3000/jwt/index.html
 # - 署名検証機能でトークンの正当性を確認
 ```
 
-### 3. Redisでトークン管理を確認
+### 3. Nonceテスト（リプレイアタック防止）
+
+```bash
+# Nonceテストページにアクセス
+open http://localhost:3000/nonce/index.html
+
+# 1. JWT ログイン（Nonce取得に必須）
+#    ユーザー: user1 / password1
+
+# 2. Nonceを取得（JWT認証必須）
+#    - JWTトークンがないと取得できない
+#    - ユーザーごとにNonceが管理される
+
+# 3. 送金処理（JWT + Nonce必須）
+#    - JWT認証とNonceの両方が必要
+#    - Nonceは一度だけ使用可能
+
+# 4. リプレイアタックをテスト
+#    - 同じNonceで再送すると拒否される
+#    - リプレイアタック防止を体験
+
+# 5. JWT認証なしでNonce取得をテスト
+#    - JWTトークンなしでは拒否される
+#    - セキュリティ強化を確認
+```
+
+### 4. Redisでトークン・Nonce管理を確認
 
 ```bash
 # Redisコンテナに接続
@@ -129,14 +166,19 @@ KEYS refresh:*
 # ブラックリスト一覧
 KEYS blacklist:*
 
+# Nonce一覧（ユーザーごと）
+KEYS nonce:*
+
 # TTL確認（残り有効期限）
 TTL refresh:{token}
+TTL nonce:user1:{nonce}
 
 # 値を確認
 GET refresh:{token}
+GET nonce:user1:{nonce}
 ```
 
-### 4. API直接テスト
+### 5. API直接テスト
 
 ```bash
 # ログイン
@@ -172,7 +214,8 @@ curl -X POST http://localhost:8090/api/logout \
 │
 ├── docs/                       # ドキュメント
 │   ├── 01-cors.md             # CORS学習資料
-│   └── 02-jwt.md              # JWT学習資料
+│   ├── 02-jwt.md              # JWT学習資料
+│   └── 03-nonce.md            # Nonce学習資料
 │
 ├── examples/                   # サンプル実装
 │   ├── cors/
@@ -180,15 +223,21 @@ curl -X POST http://localhost:8090/api/logout \
 │   │   ├── 8081-vulnerable/   # 脆弱なCORS実装
 │   │   └── 8082-secure/       # セキュアなCORS実装
 │   │
-│   └── jwt/
-│       └── 8090-full/         # JWT完全実装（Redis統合）
+│   ├── jwt/
+│   │   └── 8090-full/         # JWT完全実装（Redis統合）
+│   │       └── main.go
+│   │
+│   └── nonce/
+│       └── 8093-nonce/        # Nonce実装（JWT認証必須）
 │           └── main.go
 │
 └── frontend/                   # フロントエンド
     ├── cors/
     │   └── index.html         # CORSテストUI
-    └── jwt/
-        └── index.html         # JWTテストUI
+    ├── jwt/
+    │   └── index.html         # JWTテストUI
+    └── nonce/
+        └── index.html         # NonceテストUI
 ```
 
 ## 学習トピック
@@ -224,7 +273,23 @@ curl -X POST http://localhost:8090/api/logout \
 - 有効期限前の自動リフレッシュ
 - Axios Interceptor
 
-### 3. Redis統合（実務パターン）
+### 3. Nonce (Number used ONCE)
+
+詳細: [docs/03-nonce.md](docs/03-nonce.md)
+
+- リプレイアタック防止
+- JWT認証との組み合わせ（重要）
+- ユーザーごとのNonce管理
+- Redisでのアトミック操作
+- 一度だけ使用可能なトークン
+
+**セキュリティポイント:**
+- JWT認証でNonce取得（攻撃者がNonceを直接取得できない）
+- Nonceをユーザー名と紐付けて管理
+- Redis Transactionでアトミック検証
+- 5分TTL自動削除
+
+### 4. Redis統合（実務パターン）
 
 **メモリストアの問題点:**
 - サーバー再起動でデータ消失

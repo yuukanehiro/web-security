@@ -74,7 +74,31 @@ services:
       - ENV=development
       - PORT=8090
       - REDIS_URL=redis:6379
+      - JWT_SECRET=my-super-secret-jwt-key-please-change-in-production-256-bits
     command: sh -c "cd /app/examples/jwt/8090-full && go run main.go"
+    depends_on:
+      - redis
+    networks:
+      - web-security-network
+
+  # Nonce実装（MITM対策） - ポート8093
+  nonce:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: web-security-nonce
+    working_dir: /app/examples/nonce/8093-nonce
+    ports:
+      - "8093:8093"
+    volumes:
+      - .:/app
+      - go-modules:/go/pkg/mod
+    environment:
+      - ENV=development
+      - PORT=8093
+      - REDIS_URL=redis:6379
+      - JWT_SECRET=my-super-secret-jwt-key-please-change-in-production-256-bits
+    command: sh -c "cd /app/examples/nonce/8093-nonce && go run main.go"
     depends_on:
       - redis
     networks:
@@ -107,6 +131,7 @@ services:
       - cors-vulnerable
       - cors-secure
       - jwt-full
+      - nonce
 
 volumes:
   go-modules:

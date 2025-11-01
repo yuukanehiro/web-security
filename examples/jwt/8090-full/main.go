@@ -16,8 +16,20 @@ import (
 	"github.com/rs/cors"
 )
 
-// JWT秘密鍵（本番環境では環境変数から取得すべき）
-var jwtSecret = []byte("your-secret-key-change-this-in-production")
+// JWT秘密鍵（環境変数から取得）
+var jwtSecret []byte
+
+// 秘密鍵を初期化
+func initJWTSecret() {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		// 開発環境用のデフォルト値（本番では必ず環境変数を設定すること）
+		secret = "your-secret-key-change-this-in-production"
+		log.Println("Warning: Using default JWT secret. Set JWT_SECRET environment variable in production.")
+	}
+	jwtSecret = []byte(secret)
+	log.Printf("JWT secret initialized (length: %d bytes)", len(jwtSecret))
+}
 
 // Redis クライアント
 var (
@@ -117,6 +129,9 @@ func sendJSONError(w http.ResponseWriter, message string, statusCode int) {
 }
 
 func main() {
+	// JWT秘密鍵を初期化
+	initJWTSecret()
+
 	// Redis初期化
 	if err := initRedis(); err != nil {
 		log.Fatalf("Failed to connect to Redis: %v", err)
