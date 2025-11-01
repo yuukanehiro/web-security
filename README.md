@@ -105,7 +105,11 @@ docker-compose logs -f
 
 | サービス | URL | 説明 |
 |---------|-----|------|
-| フロントエンド | http://localhost:3000 | テスト用UI |
+| **トップページ** | **http://localhost:3000** | **全機能へのポータル** |
+| CORS テストUI | http://localhost:3000/cors/index.html | CORSテスト |
+| JWT テストUI | http://localhost:3000/jwt/index.html | JWT認証テスト |
+| Nonce テストUI | http://localhost:3000/nonce/index.html | Nonceテスト |
+| CSRF テストUI | http://localhost:3000/csrf/index.html | CSRFテスト |
 | CORS標準 | http://localhost:8080 | rs/cors実装 |
 | CORS脆弱 | http://localhost:8081 | 脆弱性デモ |
 | CORSセキュア | http://localhost:8082 | セキュア実装 |
@@ -113,14 +117,28 @@ docker-compose logs -f
 | Nonce (MITM対策) | http://localhost:8093 | Nonce + JWT |
 | CSRF脆弱 | http://localhost:8094 | CSRF対策なし |
 | CSRFセキュア | http://localhost:8095 | CSRF保護あり |
+| JWT + CSRF | http://localhost:8096 | JWT + CSRF組み合わせ |
 | Redis | localhost:6379 | トークンストレージ |
 
 ## 使用方法
 
+### トップページから開始
+
+```bash
+# トップページにアクセス
+open http://localhost:3000
+
+# 各機能のカードをクリックして、テストページに移動
+# - CORS: クロスオリジンリソース共有
+# - JWT: JSON Web Token認証
+# - Nonce: リプレイ攻撃防止
+# - CSRF: クロスサイトリクエストフォージェリ対策
+```
+
 ### 1. CORSテスト
 
 ```bash
-# フロントエンドにアクセス
+# CORSテストページにアクセス
 open http://localhost:3000/cors/index.html
 
 # 各実装の違いを確認
@@ -281,6 +299,7 @@ curl -X POST http://localhost:8090/api/logout \
 │           └── main.go
 │
 └── frontend/                   # フロントエンド
+    ├── index.html             # トップページ（全機能へのポータル）
     ├── cors/
     │   └── index.html         # CORSテストUI
     ├── jwt/
