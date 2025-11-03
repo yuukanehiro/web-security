@@ -506,7 +506,35 @@ curl -X POST http://localhost:8090/api/logout \
 - フィッシング（偽ログインフォーム）
 - リダイレクト（マルウェアサイトへ誘導）
 
-### 6. Redis統合（実務パターン）
+### 6. トークン保存方法の比較
+
+詳細: [docs/07-token-storage-comparison.md](docs/07-token-storage-comparison.md)
+
+- localStorage + Authorization Header vs HttpOnly Cookie
+- CSRF対策の必要性の違い
+- XSS対策の必要性の違い
+- 攻撃シナリオの比較
+
+**重要な違い:**
+
+| 保存場所 | 自動送信 | CSRF対策必要 | XSS対策 |
+|---------|---------|-------------|---------|
+| localStorage + Authorization Header | なし | 不要 | 脆弱 |
+| HttpOnly Cookie | あり | 必要 | 安全 |
+
+**localStorage + Authorization Header:**
+- ブラウザが自動送信しない → CSRF対策不要
+- JavaScriptから読み取り可能 → XSS対策必須
+- トークンが盗まれると完全に危険
+
+**HttpOnly Cookie:**
+- ブラウザが自動送信する → CSRF対策必要
+- JavaScriptから読み取り不可 → XSS攻撃に耐性あり
+- トークン自体は盗まれない（ただしCSRF対策は必須）
+
+**推奨:** 一般的なWebアプリケーションでは、HttpOnly Cookie + CSRF対策の組み合わせが推奨されます。
+
+### 7. Redis統合（実務パターン）
 
 **メモリストアの問題点:**
 - サーバー再起動でデータ消失
