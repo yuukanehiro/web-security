@@ -162,6 +162,44 @@ services:
     networks:
       - web-security-network
 
+  # XSS脆弱な実装 - ポート8097
+  xss-vulnerable:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: web-security-xss-vulnerable
+    working_dir: /app/examples/xss/8097-vulnerable
+    ports:
+      - "8097:8097"
+    volumes:
+      - .:/app
+      - go-modules:/go/pkg/mod
+    environment:
+      - ENV=development
+      - PORT=8097
+    command: sh -c "cd /app/examples/xss/8097-vulnerable && go run main.go"
+    networks:
+      - web-security-network
+
+  # XSSセキュアな実装 - ポート8098
+  xss-secure:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: web-security-xss-secure
+    working_dir: /app/examples/xss/8098-secure
+    ports:
+      - "8098:8098"
+    volumes:
+      - .:/app
+      - go-modules:/go/pkg/mod
+    environment:
+      - ENV=development
+      - PORT=8098
+    command: sh -c "cd /app/examples/xss/8098-secure && go run main.go"
+    networks:
+      - web-security-network
+
   # Redis
   redis:
     image: redis:7-alpine
@@ -193,6 +231,8 @@ services:
       - csrf-vulnerable
       - csrf-secure
       - jwt-csrf
+      - xss-vulnerable
+      - xss-secure
 
 volumes:
   go-modules:
