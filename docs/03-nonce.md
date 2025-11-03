@@ -613,13 +613,116 @@ HTTPで通信
 
 ## CSRFトークンとの違い
 
-| 項目 | Nonce | CSRFトークン |
-|------|-------|-------------|
-| 目的 | リプレイアタック防止 | CSRF攻撃防止 |
-| 使用回数 | 一度だけ | 複数回（セッション内） |
-| 有効期限 | 短い（5分） | 長い（セッション終了まで） |
-| 保存場所 | Redis/DB | Cookie/Session |
-| 送信方法 | リクエストヘッダー | Hidden Input/Header |
+### 防ぐ攻撃が異なる
+
+NonceとCSRFトークンは似ているようで、**目的が全く異なります**。
+
+#### CSRFトークン = CSRF攻撃を防ぐ
+
+**CSRF攻撃の例**:
+```
+1. ユーザーが銀行サイトにログイン中
+2. 悪意のあるサイト(evil.com)を訪問
+3. evil.comから自動的に銀行サイトへリクエスト送信
+   <form action="https://bank.com/transfer" method="POST">
+     <input name="to" value="attacker">
+     <input name="amount" value="10000">
+   </form>
+4. ブラウザは自動的にCookieを送信 → 送金成功！
+```
+
+**CSRFトークンで防御**:
+```
+サーバーが検証: "正規のサイトから来たリクエストか？"
+→ 悪意のあるサイトはCSRFトークンを知らない
+→ リクエストを拒否
+```
+
+#### Nonce = Replay攻撃を防ぐ
+
+**Replay攻撃の例**:
+```
+1. ユーザーが正規に送金リクエスト（正当な操作）
+   POST /api/transfer
+   Cookie: session=xxx
+   Body: {"to": "Bob", "amount": 1000}
+
+2. 攻撃者がネットワークを盗聴してリクエストをコピー
+
+3. 攻撃者が同じリクエストを何度も再送
+   → 何度も送金される！
+```
+
+**Nonceで防御**:
+```
+サーバーが検証: "このリクエストは既に使用されたか？"
+→ 同じnonceは1回しか使えない
+→ 2回目以降のリクエストを拒否
+```
+
+### 比較表
+
+| 観点 | CSRFトークン | Nonce |
+|------|-------------|-------|
+| **防ぐ攻撃** | CSRF (別サイトからの偽造リクエスト) | Replay (盗聴した正規リクエストの再送) |
+| **検証内容** | "正規のサイトから来たか" | "既に使用されていないか" |
+| **再利用** | セッション中は同じトークンを使い回せる | 1回限り使用（ワンタイム） |
+| **保存期間** | セッションの間ずっと | 数分間のみ（TTL） |
+| **攻撃者が正規リクエストをコピーした場合** | 防げない（CSRFトークンもコピーされる） | 防げる（2回目は拒否） |
+| 目的 | CSRF攻撃防止 | リプレイアタック防止 |
+| 使用回数 | 複数回（セッション内） | 一度だけ |
+| 有効期限 | 長い（セッション終了まで） | 短い（5分） |
+| 保存場所 | Cookie/Session | Redis/DB |
+| 送信方法 | Hidden Input/Header | リクエストヘッダー |
+
+### 実装例の違い
+
+#### CSRFトークン（セッション内で再利用可能）
+```javascript
+// 1. ログイン時に1回だけ取得
+const csrfToken = await login(username, password);
+localStorage.setItem('csrf', csrfToken);
+
+// 2. 何度でも同じトークンを使える
+await transfer({to: "Bob", amount: 1000, csrf: csrfToken});
+await transfer({to: "Alice", amount: 500, csrf: csrfToken}); // 同じトークン
+await changePassword({new: "xxx", csrf: csrfToken}); // 同じトークン
+```
+
+#### Nonce（毎回新しい取得が必要）
+```javascript
+// 1. リクエストごとに毎回新しいnonceを取得
+const nonce1 = await getNonce();
+await transfer({to: "Bob", amount: 1000, nonce: nonce1});
+
+const nonce2 = await getNonce(); // 新しいnonceが必要！
+await transfer({to: "Alice", amount: 500, nonce: nonce2});
+
+const nonce3 = await getNonce(); // また新しいnonceが必要！
+await changePassword({new: "xxx", nonce: nonce3});
+```
+
+### 併用する理由
+
+```
+CSRFトークン: 悪意のあるサイトからのリクエストを防ぐ
+Nonce: 盗聴されたリクエストの再送を防ぐ
+
+両方を使う = より強固な防御（多層防御）
+```
+
+### どの操作に何が必要か
+
+| 操作 | リプレイ攻撃の被害 | Nonce必要？ | CSRF攻撃の被害 | CSRFトークン必要？ |
+|------|-------------------|------------|---------------|-------------------|
+| Login | 新しいトークン発行されるだけ | 不要 | Loginを勝手にされても攻撃者は得しない | 不要 |
+| 送金 | 何度も送金される | **必須** | 悪意のあるサイトから送金される | **必須** |
+| パスワード変更 | 何度も変更される | **必須** | 悪意のあるサイトから変更される | **必須** |
+| アカウント削除 | 繰り返し削除リクエスト | **必須** | 悪意のあるサイトから削除される | **必須** |
+
+**重要な結論**:
+- **Login**: CSRFトークンもNonceも不要（HTTPSで十分）
+- **重要な操作**: CSRFトークン + Nonce の両方が有効
 
 ### 併用パターン（最も安全）
 
