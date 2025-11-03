@@ -64,7 +64,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: web-security-jwt-full
-    working_dir: /app/examples/jwt/8090-full
+    working_dir: /app/examples/auth/jwt/8090-full
     ports:
       - "8090:8090"
     volumes:
@@ -75,7 +75,29 @@ services:
       - PORT=8090
       - REDIS_URL=redis:6379
       - JWT_SECRET=my-super-secret-jwt-key-please-change-in-production-256-bits
-    command: sh -c "cd /app/examples/jwt/8090-full && go run main.go"
+    command: sh -c "cd /app/examples/auth/jwt/8090-full && go run main.go"
+    depends_on:
+      - redis
+    networks:
+      - web-security-network
+
+  # セッションCookie実装（Redis） - ポート8091
+  session-cookie:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: web-security-session-cookie
+    working_dir: /app/examples/auth/session-cookie/8091-secure
+    ports:
+      - "8091:8091"
+    volumes:
+      - .:/app
+      - go-modules:/go/pkg/mod
+    environment:
+      - ENV=development
+      - PORT=8091
+      - REDIS_URL=redis:6379
+    command: sh -c "cd /app/examples/auth/session-cookie/8091-secure && go run main.go"
     depends_on:
       - redis
     networks:
@@ -227,6 +249,7 @@ services:
       - cors-vulnerable
       - cors-secure
       - jwt-full
+      - session-cookie
       - nonce
       - csrf-vulnerable
       - csrf-secure

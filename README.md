@@ -29,6 +29,17 @@ Webセキュリティの基礎を学ぶための実践的なGoプロジェクト
   - トークンブラックリスト（Redis TTL自動削除）
   - 標準JWTクレーム完全対応（iss, sub, aud, exp, iat, nbf, jti）
 
+### セッションCookie認証（セキュア実装 + Redis）
+
+- **Session Cookie Secure Server** (Port 8091): Redisセッション管理のセキュア実装
+  - セッションCookie（1時間有効期限）
+  - HttpOnly属性（XSS対策）
+  - Secure属性（HTTPS必須）
+  - SameSite=Lax（CSRF対策）
+  - Redisセッション管理
+  - CSRFトークン保護
+  - セッション固定攻撃対策
+
 ### Nonce（MITM対策 + JWT認証）
 
 - **Nonce Server** (Port 8093): JWT認証必須のNonce実装
@@ -51,14 +62,28 @@ Webセキュリティの基礎を学ぶための実践的なGoプロジェクト
   - CSRFトークン検証
   - カスタムヘッダー（X-CSRF-Token）
 
+### XSS（Cross-Site Scripting）
+
+- **脆弱な実装** (Port 8097): XSS対策なしの実装
+  - HTMLエスケープなし
+  - CSP（Content Security Policy）なし
+  - Stored XSS脆弱性
+  - Reflected XSS脆弱性
+- **セキュアな実装** (Port 8098): XSS保護あり
+  - html/template による自動エスケープ
+  - html.EscapeString でのサニタイゼーション
+  - 厳格なCSP設定
+  - セキュリティヘッダー（X-Content-Type-Options, X-Frame-Options, X-XSS-Protection）
+
 ### フロントエンド
 
 - テスト用Webインターフェース（Port 3000）
-- CORS、JWT、Nonce、CSRF機能の対話的なテスト
+- CORS、JWT、Nonce、CSRF、XSS機能の対話的なテスト
 - JWT詳細表示（jwt.io風のUI）
 - 署名検証機能（Web Crypto API）
 - Nonceリプレイアタックのデモ
 - CSRF攻撃シミュレーション
+- XSS攻撃デモ（Stored XSS、Reflected XSS）
 
 ## 技術スタック
 
@@ -110,14 +135,18 @@ docker-compose logs -f
 | JWT テストUI | http://localhost:3000/jwt/index.html | JWT認証テスト |
 | Nonce テストUI | http://localhost:3000/nonce/index.html | Nonceテスト |
 | CSRF テストUI | http://localhost:3000/csrf/index.html | CSRFテスト |
+| XSS テストUI | http://localhost:3000/xss/demo.html | XSSテスト |
 | CORS標準 | http://localhost:8080 | rs/cors実装 |
 | CORS脆弱 | http://localhost:8081 | 脆弱性デモ |
 | CORSセキュア | http://localhost:8082 | セキュア実装 |
 | JWT Full (Redis) | http://localhost:8090 | JWT + Redis |
+| Session Cookie (Redis) | http://localhost:8091 | セッションCookie + Redis |
 | Nonce (MITM対策) | http://localhost:8093 | Nonce + JWT |
 | CSRF脆弱 | http://localhost:8094 | CSRF対策なし |
 | CSRFセキュア | http://localhost:8095 | CSRF保護あり |
 | JWT + CSRF | http://localhost:8096 | JWT + CSRF組み合わせ |
+| XSS脆弱 | http://localhost:8097 | XSS対策なし |
+| XSSセキュア | http://localhost:8098 | XSS保護あり |
 | Redis | localhost:6379 | トークンストレージ |
 
 ## 使用方法
@@ -133,6 +162,7 @@ open http://localhost:3000
 # - JWT: JSON Web Token認証
 # - Nonce: リプレイ攻撃防止
 # - CSRF: クロスサイトリクエストフォージェリ対策
+# - XSS: クロスサイトスクリプティング対策
 ```
 
 ### 1. CORSテスト
@@ -214,7 +244,37 @@ open http://localhost:3000/csrf/index.html
 #    - 脆弱なサーバーでは実行されてしまう
 ```
 
-### 5. Redisでトークン・Nonce管理を確認
+### 5. XSSテスト（Cross-Site Scripting）
+
+```bash
+# XSSテストページにアクセス
+open http://localhost:3000/xss/demo.html
+
+# 1. 攻撃例をコピー
+#    - 5種類の攻撃パターンが用意されています
+#    - 基本的なアラート攻撃
+#    - Cookie窃取攻撃
+#    - イベントハンドラー経由の攻撃
+#    - リダイレクト攻撃
+#    - HTMLインジェクション
+
+# 2. 脆弱なサーバー（Port 8097）でテスト
+#    - 攻撃コードをコメント欄に貼り付けて投稿
+#    - スクリプトが実行される（アラートが表示される）
+#    - Stored XSS攻撃が成功する
+
+# 3. セキュアなサーバー（Port 8098）でテスト
+#    - 同じ攻撃コードを投稿
+#    - スクリプトがエスケープされて無害化される
+#    - XSS攻撃が防がれる
+
+# 4. Reflected XSSテスト
+#    - 「Reflected XSSテスト」セクションのリンクをクリック
+#    - 脆弱なサーバー: スクリプトが実行される
+#    - セキュアなサーバー: スクリプトがエスケープされる
+```
+
+### 6. Redisでトークン・Nonce管理を確認
 
 ```bash
 # Redisコンテナに接続
@@ -276,7 +336,9 @@ curl -X POST http://localhost:8090/api/logout \
 │   ├── 01-cors.md             # CORS学習資料
 │   ├── 02-jwt.md              # JWT学習資料
 │   ├── 03-nonce.md            # Nonce学習資料
-│   └── 04-csrf.md             # CSRF学習資料
+│   ├── 04-csrf.md             # CSRF学習資料
+│   ├── 05-xss.md              # XSS学習資料
+│   └── 06-session-cookie.md   # セッションCookie学習資料
 │
 ├── examples/                   # サンプル実装
 │   ├── cors/
@@ -284,19 +346,32 @@ curl -X POST http://localhost:8090/api/logout \
 │   │   ├── 8081-vulnerable/   # 脆弱なCORS実装
 │   │   └── 8082-secure/       # セキュアなCORS実装
 │   │
-│   ├── jwt/
-│   │   └── 8090-full/         # JWT完全実装（Redis統合）
-│   │       └── main.go
+│   ├── auth/
+│   │   ├── jwt/
+│   │   │   └── 8090-full/     # JWT完全実装（Redis統合）
+│   │   │       └── main.go
+│   │   └── session-cookie/
+│   │       └── 8091-secure/   # セッションCookie実装（Redis統合）
+│   │           └── main.go
 │   │
 │   ├── nonce/
 │   │   └── 8093-nonce/        # Nonce実装（JWT認証必須）
 │   │       └── main.go
 │   │
-│   └── csrf/
-│       ├── 8094-vulnerable/   # CSRF脆弱な実装
+│   ├── csrf/
+│   │   ├── 8094-vulnerable/   # CSRF脆弱な実装
+│   │   │   └── main.go
+│   │   ├── 8095-secure/       # CSRFセキュアな実装
+│   │   │   └── main.go
+│   │   └── 8096-jwt-csrf/     # JWT + CSRF実装
+│   │       └── main.go
+│   │
+│   └── xss/
+│       ├── 8097-vulnerable/   # XSS脆弱な実装
 │       │   └── main.go
-│       └── 8095-secure/       # CSRFセキュアな実装
-│           └── main.go
+│       ├── 8098-secure/       # XSSセキュアな実装
+│       │   └── main.go
+│       └── demo.html          # XSSデモページ
 │
 └── frontend/                   # フロントエンド
     ├── index.html             # トップページ（全機能へのポータル）
@@ -306,8 +381,10 @@ curl -X POST http://localhost:8090/api/logout \
     │   └── index.html         # JWTテストUI
     ├── nonce/
     │   └── index.html         # NonceテストUI
-    └── csrf/
-        └── index.html         # CSRFテストUI
+    ├── csrf/
+    │   └── index.html         # CSRFテストUI
+    └── xss/
+        └── demo.html          # XSSテストUI
 ```
 
 ## 学習トピック
@@ -343,6 +420,32 @@ curl -X POST http://localhost:8090/api/logout \
 - 有効期限前の自動リフレッシュ
 - Axios Interceptor
 
+### 2-2. セッションCookie認証
+
+詳細: [docs/06-session-cookie.md](docs/06-session-cookie.md)
+
+- セッションCookie認証の仕組み
+- JWT認証との違い
+- Cookie属性（HttpOnly, Secure, SameSite, Path, Domain, MaxAge）
+- Redisセッション管理
+- セッション固定攻撃対策
+- セッションハイジャック対策
+
+**主要な対策:**
+- HttpOnly属性（XSS対策）
+- Secure属性（HTTPS必須）
+- SameSite=Lax（CSRF対策）
+- 暗号学的に安全なセッションID生成
+- ログイン成功時のセッションID再生成
+- CSRFトークンによる保護
+
+**セキュリティのポイント:**
+- セッションデータはサーバー側のみに保存
+- 即座にセッション無効化可能
+- Redis TTL自動削除
+- 同時ログイン制限
+- セッション監査ログ
+
 ### 3. Nonce (Number used ONCE)
 
 詳細: [docs/03-nonce.md](docs/03-nonce.md)
@@ -365,7 +468,7 @@ curl -X POST http://localhost:8090/api/logout \
 
 - CSRF攻撃の仕組み
 - Synchronizer Token Pattern
-- SameSite Cookie属性
+- SameSite Cookie属性（Strict/Lax/None の違い）
 - Double Submit Cookie Pattern
 - カスタムヘッダーによる防御
 
@@ -376,7 +479,34 @@ curl -X POST http://localhost:8090/api/logout \
 - Refererチェック（補助的）
 - 重要な操作はPOST/PUT/DELETE
 
-### 5. Redis統合（実務パターン）
+### 5. XSS (Cross-Site Scripting)
+
+詳細: [docs/05-xss.md](docs/05-xss.md)
+
+- XSSの種類（Reflected、Stored、DOM-based）
+- HTMLエスケープ処理
+- Content Security Policy（CSP）
+- セキュリティヘッダー
+- 入力サニタイゼーション
+
+**主要な対策:**
+- 出力時のエスケープ処理（最重要）
+- html/template の使用（Go）
+- textContent の使用（JavaScript）
+- Content Security Policy（CSP）
+- HttpOnly Cookie
+- X-Content-Type-Options: nosniff
+- X-Frame-Options: DENY
+- X-XSS-Protection: 1; mode=block
+
+**脆弱性の影響:**
+- Cookie盗難（セッションハイジャック）
+- 認証情報窃取（localStorage/sessionStorage）
+- キーロガー（パスワード・クレジットカード情報）
+- フィッシング（偽ログインフォーム）
+- リダイレクト（マルウェアサイトへ誘導）
+
+### 6. Redis統合（実務パターン）
 
 **メモリストアの問題点:**
 - サーバー再起動でデータ消失
@@ -400,7 +530,7 @@ SET blacklist:{jti} 1 EX {remaining_ttl}
 
 ## API仕様
 
-### 認証エンドポイント
+### JWT認証エンドポイント（Port 8090）
 
 #### POST /api/login
 ログインしてトークンを取得
@@ -422,6 +552,72 @@ SET blacklist:{jti} 1 EX {remaining_ttl}
   "refresh_token_expires_at": 1731067200,
   "username": "user1",
   "role": "user"
+}
+```
+
+### セッションCookie認証エンドポイント（Port 8091）
+
+#### POST /api/login
+ログインしてセッションCookieを取得
+
+**リクエスト:**
+```json
+{
+  "username": "user1",
+  "password": "password1"
+}
+```
+
+**レスポンス:**
+```json
+{
+  "message": "Login successful",
+  "username": "user1",
+  "role": "user",
+  "email": "user1@example.com",
+  "csrf_token": "randombase64string",
+  "expires_at": 1730462400
+}
+```
+
+**Set-Cookie:**
+```
+session_id=randombase64string; Path=/; Max-Age=3600; HttpOnly; SameSite=Lax
+```
+
+#### GET /api/session
+現在のセッション情報を取得
+
+**Cookie:**
+```
+session_id=randombase64string
+```
+
+**レスポンス:**
+```json
+{
+  "session_id": "randombase64string",
+  "username": "user1",
+  "role": "user",
+  "email": "user1@example.com",
+  "created_at": 1730458800,
+  "expires_at": 1730462400,
+  "csrf_token": "randombase64string"
+}
+```
+
+#### POST /api/logout
+ログアウト（セッション削除）
+
+**Cookie:**
+```
+session_id=randombase64string
+```
+
+**レスポンス:**
+```json
+{
+  "message": "Logout successful"
 }
 ```
 
@@ -629,8 +825,11 @@ MIT License
 
 - [OWASP CORS Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Origin_Resource_Sharing_Cheat_Sheet.html)
 - [OWASP CSRF Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)
+- [OWASP XSS Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html)
 - [JWT.io](https://jwt.io/)
 - [RFC 7519 - JSON Web Token](https://tools.ietf.org/html/rfc7519)
 - [Redis Documentation](https://redis.io/documentation)
 - [golang-jwt/jwt](https://github.com/golang-jwt/jwt)
 - [MDN - SameSite cookies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie/SameSite)
+- [MDN - Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
+- [CWE-79: Cross-site Scripting (XSS)](https://cwe.mitre.org/data/definitions/79.html)

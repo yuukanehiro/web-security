@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Cookie Authentication Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .back-link {
+            display: inline-block;
+            color: white;
+            text-decoration: none;
+            margin-bottom: 20px;
+            padding: 8px 15px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .back-link:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            color: #555;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .response {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .response h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .response pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+
+        .info-box h3 {
+            color: #2196F3;
+            margin-bottom: 10px;
+        }
+
+        .info-box ul {
+            margin-left: 20px;
+            color: #555;
+            line-height: 1.8;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .cookie-info {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 5px;
+        }
+
+        .cookie-info strong {
+            color: #856404;
+        }
+
+        .csrf-token {
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← トップページに戻る</a>
+
+        <header>
+            <h1>🍪 Session Cookie Authentication Test</h1>
+            <p class="subtitle">セッションCookieベースの認証をテストします</p>
+        </header>
+
+        <div class="info-box">
+            <h3>このテストについて</h3>
+            <ul>
+                <li>セッションIDはHttpOnly Cookieに保存されます（JavaScriptからアクセス不可）</li>
+                <li>セッションデータはRedisにサーバーサイドで保存されます</li>
+                <li>SameSite=Lax属性でCSRF攻撃を軽減します</li>
+                <li>状態を変更する操作にはCSRFトークンが必要です</li>
+                <li>セッションは1時間後に自動的に期限切れになります</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h2>テストユーザー</h2>
+            <ul style="color: #555; line-height: 1.8;">
+                <li><strong>user1</strong> / password1 (一般ユーザー)</li>
+                <li><strong>user2</strong> / password2 (一般ユーザー)</li>
+                <li><strong>admin</strong> / admin123 (管理者)</li>
+            </ul>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>1. ログイン</h2>
+                <div class="form-group">
+                    <label for="username">ユーザー名</label>
+                    <input type="text" id="username" value="user1" placeholder="user1">
+                </div>
+                <div class="form-group">
+                    <label for="password">パスワード</label>
+                    <input type="password" id="password" value="password1" placeholder="password1">
+                </div>
+                <button onclick="login()">ログイン</button>
+                <div id="login-response" class="response" style="display: none;"></div>
+            </div>
+
+            <div class="card">
+                <h2>2. ユーザー情報取得</h2>
+                <p style="color: #666; margin-bottom: 15px;">
+                    ログイン後にセッション情報を取得します
+                </p>
+                <button onclick="getMe()">ユーザー情報取得</button>
+                <div id="me-response" class="response" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>3. 保護されたリソース</h2>
+                <p style="color: #666; margin-bottom: 15px;">
+                    認証が必要なエンドポイントにアクセス
+                </p>
+                <button onclick="getProtected()">保護されたリソース取得</button>
+                <div id="protected-response" class="response" style="display: none;"></div>
+            </div>
+
+            <div class="card">
+                <h2>4. セッション情報</h2>
+                <p style="color: #666; margin-bottom: 15px;">
+                    現在のセッション情報とCSRFトークンを表示
+                </p>
+                <button onclick="getSessionInfo()">セッション情報取得</button>
+                <div id="session-response" class="response" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>5. 管理者専用エンドポイント</h2>
+            <p style="color: #666; margin-bottom: 15px;">
+                管理者権限が必要なエンドポイント（CSRF保護あり）
+            </p>
+            <button onclick="getAdmin()">管理者ページにアクセス</button>
+            <div id="admin-response" class="response" style="display: none;"></div>
+        </div>
+
+        <div class="card">
+            <h2>6. ログアウト</h2>
+            <p style="color: #666; margin-bottom: 15px;">
+                セッションを削除してログアウト
+            </p>
+            <button class="btn-danger" onclick="logout()">ログアウト</button>
+            <div id="logout-response" class="response" style="display: none;"></div>
+        </div>
+
+        <div class="info-box">
+            <h3>セキュリティ機能</h3>
+            <ul>
+                <li><strong>HttpOnly Cookie:</strong> JavaScriptからCookieにアクセスできません（XSS対策）</li>
+                <li><strong>SameSite=Lax:</strong> クロスサイトからのリクエストでCookieが送信されません（CSRF対策）</li>
+                <li><strong>Secure属性:</strong> HTTPS接続でのみCookieが送信されます（本番環境）</li>
+                <li><strong>CSRF Token:</strong> POST/PUT/DELETEリクエストにCSRFトークンが必要</li>
+                <li><strong>Redis Session Store:</strong> サーバーサイドでセッションデータを管理</li>
+                <li><strong>自動期限切れ:</strong> 1時間後に自動的にセッションが削除されます</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8091';
+        let csrfToken = null;
+
+        // レスポンス表示用のヘルパー関数
+        function showResponse(elementId, status, data) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+
+            const statusClass = status >= 200 && status < 300 ? 'status-success' : 'status-error';
+            const statusText = status >= 200 && status < 300 ? 'Success' : 'Error';
+
+            element.innerHTML = `
+                <div class="status-badge ${statusClass}">
+                    Status: ${status} ${statusText}
+                </div>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+
+            // CSRFトークンを保存
+            if (data.csrf_token) {
+                csrfToken = data.csrf_token;
+                const cookieInfo = document.createElement('div');
+                cookieInfo.className = 'cookie-info';
+                cookieInfo.innerHTML = `
+                    <strong>CSRFトークン保存:</strong><br>
+                    <span class="csrf-token">${csrfToken}</span><br>
+                    <small>状態を変更する操作に使用されます</small>
+                `;
+                element.appendChild(cookieInfo);
+            }
+        }
+
+        // ログイン
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch(`${API_URL}/api/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include', // Cookieを送信
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+                showResponse('login-response', response.status, data);
+            } catch (error) {
+                showResponse('login-response', 0, { error: error.message });
+            }
+        }
+
+        // ユーザー情報取得
+        async function getMe() {
+            try {
+                const response = await fetch(`${API_URL}/api/me`, {
+                    method: 'GET',
+                    credentials: 'include',
+                });
+
+                const data = await response.json();
+                showResponse('me-response', response.status, data);
+            } catch (error) {
+                showResponse('me-response', 0, { error: error.message });
+            }
+        }
+
+        // 保護されたリソース取得
+        async function getProtected() {
+            try {
+                const response = await fetch(`${API_URL}/api/protected`, {
+                    method: 'GET',
+                    credentials: 'include',
+                });
+
+                const data = await response.json();
+                showResponse('protected-response', response.status, data);
+            } catch (error) {
+                showResponse('protected-response', 0, { error: error.message });
+            }
+        }
+
+        // セッション情報取得
+        async function getSessionInfo() {
+            try {
+                const response = await fetch(`${API_URL}/api/session`, {
+                    method: 'GET',
+                    credentials: 'include',
+                });
+
+                const data = await response.json();
+                showResponse('session-response', response.status, data);
+
+                // CSRFトークンを更新
+                if (data.csrf_token) {
+                    csrfToken = data.csrf_token;
+                }
+            } catch (error) {
+                showResponse('session-response', 0, { error: error.message });
+            }
+        }
+
+        // 管理者専用エンドポイント
+        async function getAdmin() {
+            if (!csrfToken) {
+                alert('先にログインしてCSRFトークンを取得してください');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/admin`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken,
+                    },
+                    credentials: 'include',
+                });
+
+                const data = await response.json();
+                showResponse('admin-response', response.status, data);
+            } catch (error) {
+                showResponse('admin-response', 0, { error: error.message });
+            }
+        }
+
+        // ログアウト
+        async function logout() {
+            try {
+                const response = await fetch(`${API_URL}/api/logout`, {
+                    method: 'POST',
+                    credentials: 'include',
+                });
+
+                const data = await response.json();
+                showResponse('logout-response', response.status, data);
+                csrfToken = null;
+            } catch (error) {
+                showResponse('logout-response', 0, { error: error.message });
+            }
+        }
+    </script>
+</body>
+</html>

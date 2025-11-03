@@ -300,6 +300,51 @@
                     <span class="badge badge-secure">Secure</span>
                 </div>
             </a>
+
+            <!-- XSS Card -->
+            <a href="/xss/demo.html" class="card">
+                <div class="card-header">
+                    <div class="card-icon">⚠️</div>
+                    <div class="card-title">XSS</div>
+                </div>
+                <div class="card-description">
+                    Cross-Site Scripting（クロスサイトスクリプティング）攻撃と、
+                    エスケープ処理やCSPによる防御方法を学習します。
+                </div>
+                <ul class="card-features">
+                    <li>Stored XSS 攻撃</li>
+                    <li>Reflected XSS 攻撃</li>
+                    <li>HTMLエスケープ処理</li>
+                    <li>Content Security Policy</li>
+                </ul>
+                <div>
+                    <span class="badge badge-port">Port 8097-8098</span>
+                    <span class="badge badge-vulnerable">Vulnerable</span>
+                    <span class="badge badge-secure">Secure</span>
+                </div>
+            </a>
+
+            <!-- Session Cookie Card -->
+            <a href="/session-cookie/index.html" class="card">
+                <div class="card-header">
+                    <div class="card-icon">🍪</div>
+                    <div class="card-title">Session Cookie</div>
+                </div>
+                <div class="card-description">
+                    セッションCookieを使った認証の仕組み、セキュアなCookie属性、
+                    Redisでのセッション管理を学習します。
+                </div>
+                <ul class="card-features">
+                    <li>セッションベース認証</li>
+                    <li>HttpOnly / Secure / SameSite</li>
+                    <li>Redis セッションストア</li>
+                    <li>CSRF トークン保護</li>
+                </ul>
+                <div>
+                    <span class="badge badge-port">Port 8091</span>
+                    <span class="badge badge-secure">Secure</span>
+                </div>
+            </a>
         </div>
 
         <div class="info-section">
@@ -326,6 +371,11 @@
                     完全な JWT 実装
                 </div>
                 <div class="server-item">
+                    <strong>Session Cookie</strong><br>
+                    Port: 8091<br>
+                    セッションベース認証
+                </div>
+                <div class="server-item">
                     <strong>Nonce Protection</strong><br>
                     Port: 8093<br>
                     リプレイ攻撃対策
@@ -344,6 +394,16 @@
                     <strong>JWT + CSRF</strong><br>
                     Port: 8096<br>
                     JWT と CSRF の組み合わせ
+                </div>
+                <div class="server-item">
+                    <strong>XSS Vulnerable</strong><br>
+                    Port: 8097<br>
+                    XSS 脆弱な実装
+                </div>
+                <div class="server-item">
+                    <strong>XSS Secure</strong><br>
+                    Port: 8098<br>
+                    XSS 保護あり
                 </div>
             </div>
         </div>
