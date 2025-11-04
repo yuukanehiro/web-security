@@ -255,7 +255,7 @@ func refreshHandler(w http.ResponseWriter, r *http.Request) {
 
 **推奨**: まず`SameSite=Strict`を設定し、必要に応じてCSRFトークンを追加する多層防御が理想的です。
 
----
+---Secure:   false,                      // 開発環境用（本番環境では必ずtrueに変更すること）
 
 ## RBAC（ロールベースアクセス制御）
 
