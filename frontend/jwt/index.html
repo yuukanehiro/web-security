@@ -304,7 +304,8 @@
             <strong>💡 このページについて:</strong><br>
             JWT認証の完全な実装を体験できます。アクセストークン、リフレッシュトークン、RBAC（ロールベースアクセス制御）を学べます。<br>
             <strong>テストユーザー:</strong> user1/password1 (user), user2/password2 (user), admin/admin123 (admin)<br>
-            <strong>機能:</strong> Access Token (15分) + Refresh Token (7日) + RBAC
+            <strong>機能:</strong> Access Token (15分, LocalStorage) + Refresh Token (7日, HttpOnly Cookie) + RBAC<br>
+            <strong>セキュリティ:</strong> リフレッシュトークンはHttpOnly Cookie（XSS対策） + SameSite=Strict（CSRF対策）
         </div>
 
         <!-- ステータス表示 -->
@@ -573,9 +574,9 @@
 
                 const data = await response.json();
 
-                // アクセストークンとリフレッシュトークンを保存
+                // アクセストークンのみLocalStorageに保存
+                // リフレッシュトークンはHttpOnly Cookieに保存される（JavaScriptからアクセス不可）
                 localStorage.setItem('jwt_access_token', data.access_token);
-                localStorage.setItem('jwt_refresh_token', data.refresh_token);
                 localStorage.setItem('jwt_access_expires_at', data.access_token_expires_at);
                 localStorage.setItem('jwt_refresh_expires_at', data.refresh_token_expires_at);
                 localStorage.setItem('jwt_username', data.username);
@@ -588,6 +589,7 @@
                     ロール: ${data.role}<br><br>
                     アクセストークン有効期限: ${new Date(data.access_token_expires_at * 1000).toLocaleString()}<br>
                     リフレッシュトークン有効期限: ${new Date(data.refresh_token_expires_at * 1000).toLocaleString()}<br><br>
+                    ${data.message || 'Refresh token stored in HttpOnly cookie'}<br>
                     トークンは下の「認証状態」セクションで詳細表示されます。
                 `;
 
@@ -600,37 +602,34 @@
 
         // ログアウト
         async function logout() {
-            const refreshToken = localStorage.getItem('jwt_refresh_token');
             const accessToken = localStorage.getItem('jwt_access_token');
 
             // リフレッシュトークンを無効化 & アクセストークンをブラックリストに追加
-            if (refreshToken) {
-                try {
-                    await fetch(`${API_URL}/api/logout`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            refresh_token: refreshToken,
-                            access_token: accessToken // アクセストークンもサーバーに送信
-                        })
-                    });
-                } catch (error) {
-                    console.error('Logout API error:', error);
-                }
+            // リフレッシュトークンはHttpOnly Cookieから自動送信される
+            try {
+                await fetch(`${API_URL}/api/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include', // Cookieを含める
+                    body: JSON.stringify({
+                        access_token: accessToken // アクセストークンのみサーバーに送信
+                    })
+                });
+            } catch (error) {
+                console.error('Logout API error:', error);
             }
 
             // ローカルストレージをクリア
             localStorage.removeItem('jwt_access_token');
-            localStorage.removeItem('jwt_refresh_token');
             localStorage.removeItem('jwt_access_expires_at');
             localStorage.removeItem('jwt_refresh_expires_at');
             localStorage.removeItem('jwt_username');
             localStorage.removeItem('jwt_role');
 
             document.getElementById('login-result').className = 'result success';
-            document.getElementById('login-result').textContent = 'ログアウトしました（トークンをブラックリストに追加）';
+            document.getElementById('login-result').textContent = 'ログアウトしました（トークンをブラックリストに追加、Cookieを削除）';
 
             updateAuthStatus();
         }
@@ -673,23 +672,26 @@
         // リフレッシュトークンでアクセストークンを更新
         async function refreshAccessToken() {
             const resultDiv = document.getElementById('refresh-result');
-            const refreshToken = localStorage.getItem('jwt_refresh_token');
 
-            if (!refreshToken) {
+            // リフレッシュトークンはHttpOnly Cookieに保存されているため、
+            // JavaScriptから確認できない。ログイン状態をチェック。
+            const username = localStorage.getItem('jwt_username');
+            if (!username) {
                 resultDiv.className = 'result error';
-                resultDiv.textContent = '❌ リフレッシュトークンがありません。先にログインしてください。';
+                resultDiv.textContent = '❌ ログインしていません。先にログインしてください。';
                 return;
             }
 
             resultDiv.innerHTML = '更新中...';
 
             try {
+                // リフレッシュトークンはHttpOnly Cookieから自動送信される
                 const response = await fetch(`${API_URL}/api/refresh`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ refresh_token: refreshToken })
+                    credentials: 'include', // Cookieを含める
                 });
 
                 if (!response.ok) {
@@ -714,7 +716,7 @@
                 updateAuthStatus();
             } catch (error) {
                 resultDiv.className = 'result error';
-                resultDiv.textContent = `❌ エラー:\n${error.message}`;
+                resultDiv.textContent = `❌ エラー:\n${error.message}\n\nリフレッシュトークンの有効期限が切れている可能性があります。再度ログインしてください。`;
             }
         }
 
@@ -916,7 +918,6 @@
         // 認証状態の更新
         function updateAuthStatus() {
             const accessToken = localStorage.getItem('jwt_access_token');
-            const refreshToken = localStorage.getItem('jwt_refresh_token');
             const username = localStorage.getItem('jwt_username');
             const role = localStorage.getItem('jwt_role');
             const accessExpiresAt = localStorage.getItem('jwt_access_expires_at');
@@ -936,7 +937,7 @@
 
                 tokenInfo.innerHTML = `
                     <div class="token-display">
-                        <h3>アクセストークン
+                        <h3>アクセストークン（LocalStorage）
                             <span style="color: ${isAccessExpired ? '#e53e3e' : '#22543d'};">
                                 ${isAccessExpired ? '❌ 期限切れ' : '✅ 有効'}: ${accessExpireDate.toLocaleString()}
                             </span>
@@ -944,18 +945,23 @@
                         <div id="access-token-viewer"></div>
                     </div>
                     <div class="token-display">
-                        <h3>リフレッシュトークン
+                        <h3>リフレッシュトークン（HttpOnly Cookie）
                             <span style="color: ${isRefreshExpired ? '#e53e3e' : '#22543d'};">
                                 ${isRefreshExpired ? '❌ 期限切れ' : '✅ 有効'}: ${refreshExpireDate.toLocaleString()}
                             </span>
                         </h3>
-                        <div id="refresh-token-viewer"></div>
+                        <div style="background: #ebf8ff; padding: 15px; border-radius: 6px; border-left: 4px solid #4299e1; margin-top: 10px;">
+                            <p style="color: #2c5282; margin: 0;">
+                                🔒 リフレッシュトークンはHttpOnly Cookieに保存されているため、JavaScriptからアクセスできません。<br>
+                                これにより、XSS攻撃からトークンを保護できます。<br><br>
+                                <strong>CSRF対策:</strong> SameSite=Strict属性により、クロスサイトリクエストでCookieが送信されません。
+                            </p>
+                        </div>
                     </div>
                 `;
 
-                // JWT を詳細表示
+                // アクセストークンのみ詳細表示
                 displayJWT(accessToken, 'access-token-viewer');
-                displayJWT(refreshToken, 'refresh-token-viewer');
             } else {
                 statusBadge.className = 'status-badge logged-out';
                 statusBadge.textContent = 'ログアウト中';

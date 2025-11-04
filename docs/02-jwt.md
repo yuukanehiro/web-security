@@ -179,6 +179,82 @@ HMACSHA256(
 | アクセストークン | 短い（15分） | メモリ/LocalStorage | 高い | 困難（有効期限待ち） |
 | リフレッシュトークン | 長い（7日） | HttpOnly Cookie | 低い | 可能（DB管理） |
 
+### 混合構成のセキュリティ考慮事項
+
+上記の混合構成（アクセストークン→LocalStorage、リフレッシュトークン→HttpOnly Cookie）を採用する場合、**リフレッシュエンドポイントのみCSRF対策が必要**になります。
+
+#### なぜリフレッシュエンドポイントにCSRF対策が必要か
+
+| エンドポイント | トークン送信方法 | CSRF対策 | 理由 |
+|-------------|---------------|---------|------|
+| `/api/protected` | Authorization Header（LocalStorage） | 不要 | ブラウザが自動送信しないため |
+| `/api/refresh` | HttpOnly Cookie | **必要** | ブラウザが自動送信するため |
+
+**問題のシナリオ**:
+```html
+<!-- 攻撃者のサイト -->
+<script>
+  // 被害者のブラウザが自動的にリフレッシュトークンCookieを送信
+  fetch('https://victim.com/api/refresh', {
+    method: 'POST',
+    credentials: 'include' // Cookieを含める
+  });
+  // → 攻撃者が新しいアクセストークンを取得できてしまう
+</script>
+```
+
+#### CSRF対策の実装方法
+
+**方法1: SameSite属性（推奨）**
+
+```go
+// リフレッシュトークンをCookieに設定
+http.SetCookie(w, &http.Cookie{
+    Name:     "refresh_token",
+    Value:    refreshToken,
+    HttpOnly: true,
+    Secure:   true,
+    SameSite: http.SameSiteStrictMode,  // CSRF対策
+    MaxAge:   60 * 60 * 24 * 7,  // 7日
+})
+```
+
+- `SameSite=Strict`: クロスサイトリクエストでCookieを送信しない
+- `SameSite=Lax`: トップレベルナビゲーション（GETのみ）では送信
+
+**方法2: CSRFトークン（Synchronizer Token Pattern）**
+
+```go
+// ログイン時にCSRFトークンを発行
+csrfToken := generateCSRFToken()
+sessions[username] = csrfToken
+
+// リフレッシュエンドポイントでCSRFトークンを検証
+func refreshHandler(w http.ResponseWriter, r *http.Request) {
+    // Cookieからリフレッシュトークン取得
+    cookie, _ := r.Cookie("refresh_token")
+
+    // X-CSRF-Tokenヘッダーを検証
+    csrfToken := r.Header.Get("X-CSRF-Token")
+    if !validateCSRFToken(username, csrfToken) {
+        http.Error(w, "Invalid CSRF token", http.StatusForbidden)
+        return
+    }
+
+    // 新しいアクセストークン発行
+    // ...
+}
+```
+
+#### トレードオフ
+
+| 対策 | メリット | デメリット |
+|-----|---------|----------|
+| SameSite=Strict | 実装が簡単、追加コード不要 | サブドメイン間での認証に制約 |
+| CSRFトークン | 柔軟性が高い、細かい制御可能 | 実装が複雑、状態管理が必要 |
+
+**推奨**: まず`SameSite=Strict`を設定し、必要に応じてCSRFトークンを追加する多層防御が理想的です。
+
 ---
 
 ## RBAC（ロールベースアクセス制御）

@@ -277,16 +277,27 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// リフレッシュトークンをHttpOnly Cookieに設定（CSRF対策: SameSite=Strict）
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    refreshTokenString,
+		Path:     "/",
+		HttpOnly: true,                       // XSS対策（JavaScriptから読めない）
+		Secure:   false,                      // 開発環境用（本番環境では必ずtrueに変更すること）
+		SameSite: http.SameSiteStrictMode,    // CSRF対策
+		MaxAge:   int(refreshTokenExpiration.Seconds()),
+	})
+
 	log.Printf("Login successful: %s (role: %s)", creds.Username, user.Role)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"access_token":             accessTokenString,
-		"refresh_token":            refreshTokenString,
 		"access_token_expires_at":  accessTokenExpiration.Unix(),
 		"refresh_token_expires_at": time.Now().Add(refreshTokenExpiration).Unix(),
 		"username":                 creds.Username,
 		"role":                     user.Role,
+		"message":                  "Refresh token stored in HttpOnly cookie",
 	})
 }
 
@@ -297,17 +308,17 @@ func refreshHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req struct {
-		RefreshToken string `json:"refresh_token"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendJSONError(w, "Invalid request body", http.StatusBadRequest)
+	// HttpOnly Cookieからリフレッシュトークンを取得
+	cookie, err := r.Cookie("refresh_token")
+	if err != nil {
+		sendJSONError(w, "Refresh token cookie not found", http.StatusUnauthorized)
 		return
 	}
 
+	refreshToken := cookie.Value
+
 	// リフレッシュトークンをRedisから取得
-	username, err := getRefreshToken(req.RefreshToken)
+	username, err := getRefreshToken(refreshToken)
 	if err != nil {
 		if err == redis.Nil {
 			sendJSONError(w, "Invalid or expired refresh token", http.StatusUnauthorized)
@@ -366,23 +377,21 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// HttpOnly Cookieからリフレッシュトークンを取得
+	cookie, err := r.Cookie("refresh_token")
+	if err == nil {
+		// リフレッシュトークンをRedisから削除
+		if err := deleteRefreshToken(cookie.Value); err != nil && err != redis.Nil {
+			log.Printf("Warning: Failed to delete refresh token: %v", err)
+		}
+	}
+
+	// オプション：リクエストボディからアクセストークンを取得してブラックリストに追加
 	var req struct {
-		RefreshToken string `json:"refresh_token"`
-		AccessToken  string `json:"access_token"` // オプション：アクセストークンもブラックリストに追加
+		AccessToken string `json:"access_token"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		sendJSONError(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// リフレッシュトークンをRedisから削除
-	if err := deleteRefreshToken(req.RefreshToken); err != nil && err != redis.Nil {
-		log.Printf("Warning: Failed to delete refresh token: %v", err)
-	}
-
-	// アクセストークンをブラックリストに追加（Redis）
-	if req.AccessToken != "" {
+	if err := json.NewDecoder(r.Body).Decode(&req); err == nil && req.AccessToken != "" {
 		claims := &Claims{}
 		token, err := jwt.ParseWithClaims(req.AccessToken, claims, func(token *jwt.Token) (interface{}, error) {
 			return jwtSecret, nil
@@ -396,6 +405,17 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+
+	// リフレッシュトークンCookieを削除
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false, // 開発環境用（本番環境ではtrueに変更）
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   -1, // 即座に削除
+	})
 
 	log.Printf("Logout successful")
 
